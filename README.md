@@ -1,142 +1,149 @@
-Đây là file README.md đầy đủ và chuyên nghiệp dành cho đồ án OmniSight của bạn. Bạn có thể copy nội dung này vào một file tên là README.md ở thư mục gốc của Solution.
+Chúc mừng bạn! Sau một quá trình nỗ lực, dự án OmniSight của bạn hiện đã có một bộ khung cực kỳ chuyên nghiệp, từ kiến trúc phần mềm (N-Tier), bảo mật (Mã hóa, xác thực email) cho đến trải nghiệm người dùng (Google OAuth, Deep Linking, Auto-login).
 
-🎓 OmniSight - Hệ thống Giám sát Thi cử & Quản lý Lớp học AI
+Dưới đây là file README.md đầy đủ và chuyên nghiệp nhất, tổng hợp toàn bộ các tính năng và công nghệ mà chúng ta đã cùng nhau xây dựng. Bạn hãy lưu nội dung này vào file README.md ở thư mục gốc của dự án.
 
-OmniSight là một ứng dụng Desktop mạnh mẽ được xây dựng trên nền tảng .NET WinForms, kết hợp với trí tuệ nhân tạo (AI) để tối ưu hóa việc quản lý lớp học và đảm bảo tính minh bạch trong các kỳ thi trực tuyến.
+🎓 OmniSight - AI-Powered Exam Supervision & Classroom Management
 
-🏗 1. Kiến trúc Hệ thống (Architecture)
+OmniSight là một hệ thống Desktop toàn diện được xây dựng trên nền tảng .NET 8 WinForms, ứng dụng kiến trúc đa tầng (N-Tier) và trí tuệ nhân tạo để quản lý lớp học trực tuyến và giám sát thi cử công bằng.
 
-Dự án được thiết kế theo mô hình N-Tier Architecture (Kiến trúc đa tầng) để đảm bảo tính mở rộng và dễ bảo trì:
+🏗 Kiến trúc Hệ thống (N-Tier Architecture)
 
-OmniSight.UI (Presentation Layer): Giao diện người dùng WinForms sử dụng MaterialSkin 2 để mang lại trải nghiệm hiện đại như Google Classroom.
+Dự án được thiết kế chuẩn hóa để dễ dàng mở rộng và bảo trì:
 
-OmniSight.Services (Business Logic Layer): Xử lý logic nghiệp vụ chính bao gồm xác thực Google OAuth2, gửi Email qua SMTP, và quản lý phiên làm việc (Session).
+OmniSight.UI: Tầng giao diện người dùng (Material Design 2). Quản lý Form, điều hướng và xử lý Deep Linking.
 
-OmniSight.Data (Data Access Layer): Sử dụng Entity Framework Core để giao tiếp với SQL Server. Quản lý cấu hình Database và các ràng buộc dữ liệu phức tạp.
+OmniSight.Services: Tầng nghiệp vụ (Business Logic). Xử lý xác thực Google, gửi Email SMTP, mã hóa mật khẩu và quản lý phiên (Session).
 
-OmniSight.Core (Domain Layer): Chứa các thực thể (Entities), Enum và các hằng số dùng chung cho toàn bộ hệ thống.
+OmniSight.Data: Tầng truy cập dữ liệu (Data Access). Sử dụng Entity Framework Core để giao tiếp với SQL Server.
 
-OmniSight.AI (AI Core Layer): Tầng xử lý các thuật toán nhận diện khuôn mặt, bắt ánh mắt và âm thanh (Đang phát triển).
+OmniSight.Core: Tầng lõi (Domain). Định nghĩa các thực thể (Entities), Enum và các hằng số dùng chung.
 
-📂 2. Cấu trúc thư mục chi tiết
+OmniSight.AI: Tầng xử lý trí tuệ nhân tạo (Đang phát triển nhận diện khuôn mặt và hành vi qua OpenCV).
+
+🌟 Các tính năng đã hoàn thiện
+1. Hệ thống Xác thực Đa phương thức (Authentication)
+
+Đăng ký/Đăng nhập truyền thống: Sử dụng Email làm Username, mật khẩu được mã hóa chuẩn BCrypt.
+
+Google OAuth 2.0: Đăng nhập một chạm bằng tài khoản Google.
+
+Liên kết tài khoản: Tự động liên kết tài khoản Google với tài khoản Email đã đăng ký trước đó nếu trùng địa chỉ Email.
+
+Thiết lập mật khẩu: Yêu cầu người dùng đăng nhập qua Google lần đầu thiết lập mật khẩu để có thể dùng song song cả hai cách đăng nhập.
+
+2. Bảo mật & Xác thực (Security)
+
+Xác thực Email: Gửi mã Token xác nhận qua Gmail ngay khi đăng ký.
+
+Deep Linking (Custom Protocol): Hỗ trợ link omnisight:// trong Email. Khi bấm nút "Xác thực" trên trình duyệt, ứng dụng sẽ tự động bật lên và kích hoạt tài khoản.
+
+SMTP App Password: Cấu hình gửi mail bảo mật qua Google App Password.
+
+3. Trải nghiệm Người dùng (UX)
+
+Auto-Login (Session): Ghi nhớ trạng thái đăng nhập vào file cục bộ (session.json), tự động vào Dashboard khi mở App lần sau.
+
+Đăng xuất an toàn: Chức năng Application.Restart() giúp xóa sạch phiên làm việc và quay lại màn hình đăng nhập.
+
+Material UI 2: Giao diện phẳng hiện đại, hỗ trợ Drawer (Menu trượt bên trái) giống Google Classroom.
+
+4. Quản lý Hồ sơ & Phân quyền (Profile & Roles)
+
+Flexible Roles: Một người dùng có thể vừa là Giáo viên, vừa là Học sinh (Bật/tắt linh hoạt trong Profile).
+
+Dashboard thông minh: Menu và chức năng (Tạo lớp/Tham gia lớp) tự động ẩn/hiện dựa trên Role người dùng.
+
+Account Menu: Tên người dùng hiển thị ở góc phải thanh tiêu đề, hỗ trợ Context Menu để Đăng xuất nhanh.
+
+🛠 Công nghệ & Thư viện sử dụng (Tech Stack)
+Thành phần	Công nghệ
+Ngôn ngữ	C# / .NET 8.0 (Windows Forms)
+Database	Microsoft SQL Server
+ORM	Entity Framework Core 8.0
+Giao diện	MaterialSkin.2
+Xác thực	Google.Apis.Auth (OAuth 2.0)
+Email	MailKit & MimeKit (SMTP)
+Mã hóa	BCrypt.Net-Next
+Deep Link	Windows Registry (Custom Protocol)
+🚀 Hướng dẫn Cài đặt
+1. Cấu hình file appsettings.json
+
+Tạo file appsettings.json trong project OmniSight.UI với nội dung sau:
+
+code
+JSON
+download
+content_copy
+expand_less
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=YOUR_SERVER;Database=OmniSightDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "GoogleAuth": {
+    "ClientId": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "ClientSecret": "YOUR_CLIENT_SECRET"
+  },
+  "EmailSettings": {
+    "Sender": "your_email@gmail.com",
+    "AppPassword": "xxxx xxxx xxxx xxxx"
+  }
+}
+
+Lưu ý: Chuột phải vào file chọn Properties -> Copy to Output Directory -> Copy if newer.
+
+2. Cài đặt NuGet Packages
+
+Mở Package Manager Console và cài đặt:
+
+code
+Powershell
+download
+content_copy
+expand_less
+# Project Data
+Install-Package Microsoft.EntityFrameworkCore.SqlServer
+
+# Project Services
+Install-Package Google.Apis.Auth
+Install-Package MailKit
+Install-Package BCrypt.Net-Next
+
+# Project UI
+Install-Package MaterialSkin.2
+Install-Package Microsoft.Extensions.Hosting
+Install-Package System.Web.HttpUtility
+3. Khởi tạo Database
+code
+Powershell
+download
+content_copy
+expand_less
+Add-Migration InitialCreate -StartupProject OmniSight.UI
+Update-Database -StartupProject OmniSight.UI
+📂 Cấu trúc thư mục chính
 code
 Text
 download
 content_copy
 expand_less
 OmniSight_System/
-├── OmniSight.Core/             # Các lớp thực thể (Entities)
-│   ├── Entities/               # User, Class, Exam, Assignment, AuthToken...
-│   └── Helpers/                # Các lớp hỗ trợ logic nhỏ
-├── OmniSight.Data/             # Kết nối Database
-│   ├── OmniSightDbContext.cs   # Cấu hình EF Core & Fluent API
-│   └── Migrations/             # Lịch sử cập nhật Database
-├── OmniSight.Services/         # Logic xử lý nghiệp vụ
-│   ├── AuthService.cs          # Đăng nhập Google, Email, Register...
-│   └── EmailTemplates.cs       # Mẫu giao diện Email HTML
-├── OmniSight.UI/               # Giao diện chính (WinForms)
-│   ├── Forms/                  # Auth, Teacher, Student Dashboards
-│   ├── appsettings.json        # Cấu hình ClientID, Chuỗi kết nối DB
-│   └── Program.cs              # Cấu hình Dependency Injection (DI)
-└── OmniSight.AI/               # Lõi xử lý AI
-🛠 3. Công nghệ & Thư viện sử dụng (Tech Stack)
-Backend & Core
+├── OmniSight.Core/        # Entities (User, Class, AuthToken...)
+├── OmniSight.Data/        # DbContext, Migrations
+├── OmniSight.Services/    # AuthService, UserService
+└── OmniSight.UI/
+    ├── Forms/
+    │   ├── Auth/          # FrmLogin, FrmRegister, FrmSetPassword
+    │   └── MainForm.cs    # Dashboard chính (Google Classroom Style)
+    ├── Program.cs         # Khởi tạo App & Deep Linking
+    └── appsettings.json   # Cấu hình hệ thống
+📝 Các mục tiêu tiếp theo
 
-.NET 8.0/6.0 WinForms: Nền tảng phát triển chính.
+Tích hợp OpenCvSharp4 để xử lý Camera.
 
-Entity Framework Core: Ánh xạ dữ liệu SQL Server.
+Xây dựng hệ thống FaceID Enrollment (Định danh khuôn mặt).
 
-Dependency Injection (Microsoft.Extensions.DependencyInjection): Quản lý vòng đời các đối tượng.
+Logic Tạo lớp học/Tham gia lớp học qua Join Code.
 
-BCrypt.Net-Next: Mã hóa mật khẩu an toàn.
-
-Xác thực & Giao tiếp
-
-Google OAuth 2.0: Đăng nhập một chạm qua tài khoản Google.
-
-MailKit & MimeKit: Hệ thống gửi Email xác thực và Reset mật khẩu.
-
-System.Text.Json: Xử lý dữ liệu JSON cho Session lưu trữ cục bộ.
-
-Giao diện (UI)
-
-MaterialSkin.2: Bộ thư viện thiết kế Material Design cho WinForms.
-
-🚀 4. Hướng dẫn cài đặt & Vận hành
-Bước 1: Cài đặt các NuGet Packages
-
-Mở Package Manager Console và cài đặt cho từng project:
-
-Project UI:
-
-code
-Powershell
-download
-content_copy
-expand_less
-Install-Package MaterialSkin.2
-Install-Package Microsoft.Extensions.Hosting
-Install-Package Microsoft.Extensions.Configuration.Json
-
-Project Data:
-
-code
-Powershell
-download
-content_copy
-expand_less
-Install-Package Microsoft.EntityFrameworkCore.SqlServer
-Install-Package Microsoft.EntityFrameworkCore.Tools
-
-Project Services:
-
-code
-Powershell
-download
-content_copy
-expand_less
-Install-Package Google.Apis.Auth
-Install-Package MailKit
-Bước 2: Cấu hình appsettings.json
-
-Cập nhật thông tin trong file OmniSight.UI/appsettings.json:
-
-
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=YOUR_SERVER_NAME;Database=OmniSightDb;Trusted_Connection=True;TrustServerCertificate=True;"
-  },
-
-Bước 3: Khởi tạo Database
-
-Chạy các lệnh sau trong Package Manager Console (Chọn Default project là OmniSight.Data):
-
-Add-Migration InitialCreate -StartupProject OmniSight.UI
-
-Update-Database -StartupProject OmniSight.UI
-
-💡 5. Cách thức hoạt động của Chức năng Đăng nhập
-
-Đăng nhập Google: Ứng dụng mở trình duyệt qua GoogleWebAuthorizationBroker. Sau khi xác thực thành công, Google trả về một Identity Token.
-
-Xử lý dữ liệu: AuthService kiểm tra GoogleId trong Database.
-
-Nếu chưa có: Tự động tạo tài khoản mới với vai trò mặc định là Student.
-
-Nếu đã có: Lấy thông tin User hiện tại.
-
-Quản lý Session: Sau khi đăng nhập, UserId được lưu vào một file session.json trong thư mục AppData/Local. Khi mở lại ứng dụng, TryAutoLoginAsync sẽ đọc file này để tự động đăng nhập mà không cần User thao tác lại.
-
-Phòng chống lỗi Null: Các trường AI như FaceEmbedding, FaceVector được khởi tạo giá trị rỗng ("") để đảm bảo không vi phạm ràng buộc NOT NULL của Database khi User mới chưa thực hiện định danh khuôn mặt.
-
-📝 6. Các tính năng sắp tới
-
-AI Face Enrollment: Chụp ảnh gốc và trích xuất Vector đặc trưng khuôn mặt.
-
-Classroom Manager: Tạo lớp học qua Join Code.
-
-AI Monitoring: Cảnh báo quay cóp qua Head Pose và Eye Gaze.
-
-Exam Sync: Đồng bộ dữ liệu Offline từ SQLite lên SQL Server trung tâm.
+Hệ thống thi trắc nghiệm thời gian thực.
 
 OmniSight Team - Smarter Management, Fairer Exams.

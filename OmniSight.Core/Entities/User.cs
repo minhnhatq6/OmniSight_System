@@ -27,8 +27,10 @@ namespace OmniSight.Core.Entities
         [MaxLength(255)]
         public string AvatarUrl { get; set; } = string.Empty;
 
-        [MaxLength(20)]
-        public string Role { get; set; } = "Student";
+        public bool IsStudent { get; set; } = true;  // Mặc định luôn là học sinh
+        public bool IsTeacher { get; set; } = false; // Mặc định chưa phải giáo viên
+        [MaxLength(15)]
+        public string Phone { get; set; } = string.Empty; // Thêm số điện thoại cho profile
 
         // Quan trọng: Gán rỗng để Database không báo lỗi NULL
         public string FaceVector { get; set; } = string.Empty;

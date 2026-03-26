@@ -1,38 +1,82 @@
 using MaterialSkin.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using OmniSight.Services;
-using System;
-using System.Windows.Forms;
+using OmniSight.UI.Forms;
 
 namespace OmniSight.UI.Forms.Auth
 {
     public partial class FrmLogin : MaterialForm
     {
         private readonly AuthService _authService;
+        private readonly IServiceProvider _serviceProvider;
 
-        public FrmLogin(AuthService authService)
+        public FrmLogin(AuthService authService, IServiceProvider serviceProvider)
         {
-            _authService = authService;
             InitializeComponent();
+            _authService = authService;
+            _serviceProvider = serviceProvider;
         }
 
         private async void btnLoginGoogle_Click(object sender, EventArgs e)
         {
-            try
+            bool success = await _authService.LoginWithGoogleAsync();
+            if (success)
             {
-                var result = await _authService.LoginWithGoogleAsync();
-                if (result)
+                var user = _authService.CurrentUser;
+
+                // KIỂM TRA: Nếu user chưa có mật khẩu (do mới Login Google lần đầu)
+                if (string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_AUTH")
                 {
-                    MessageBox.Show("Đăng nhập Google thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    using (var setPassForm = _serviceProvider.GetRequiredService<FrmSetPassword>())
+                    {
+                        if (setPassForm.ShowDialog() == DialogResult.OK)
+                        {
+                            GoToMainForm(); // Xong thì vào Main
+                        }
+                        else
+                        {
+                            // Nếu tắt form set pass giữa chừng thì đăng xuất luôn cho an toàn
+                            _authService.Logout();
+                        }
+                    }
                 }
                 else
                 {
-                    MessageBox.Show("Đăng nhập Google thất bại!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    // Nếu đã có mật khẩu rồi thì vào thẳng
+                    GoToMainForm();
                 }
             }
-            catch (Exception ex)
+        }
+
+        // SỰ KIỆN NÚT ĐĂNG NHẬP THƯỜNG
+        private async void btnLoginEmail_Click(object sender, EventArgs e)
+        {
+            // SỬA LẠI CÁCH VIẾT NÀY ĐỂ TRÁNH LỖI CS8130
+            var result = await _authService.LoginWithEmailAsync(txtEmail.Text, txtPassword.Text);
+            if (result.success)
             {
-                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                GoToMainForm();
             }
+            else
+            {
+                MessageBox.Show(result.message, "Lỗi Đăng nhập");
+            }
+        }
+
+        // SỰ KIỆN LINK SANG TRANG ĐĂNG KÝ
+        private void lnkRegister_Click(object sender, EventArgs e)
+        {
+            var registerForm = _serviceProvider.GetRequiredService<FrmRegister>();
+            registerForm.Show();
+            this.Hide();
+        }
+
+        // Hàm chung để chuyển form, tránh lặp code
+        private void GoToMainForm()
+        {
+            var mainForm = _serviceProvider.GetRequiredService<MainForm>();
+            mainForm.Show();
+            this.Hide();
         }
     }
 }
