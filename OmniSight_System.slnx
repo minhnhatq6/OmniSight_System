@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="OmniSight.AI/OmniSight.AI.csproj" />
+  <Project Path="OmniSight.Core/OmniSight.Core.csproj" />
+  <Project Path="OmniSight.Data/OmniSight.Data.csproj" />
+  <Project Path="OmniSight.Services/OmniSight.Services.csproj" />
+  <Project Path="OmniSight.UI/OmniSight.UI.csproj" />
+</Solution>
