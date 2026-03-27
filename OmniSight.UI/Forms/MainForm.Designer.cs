@@ -23,6 +23,10 @@
             this.lblHomeWelcome = new MaterialSkin.Controls.MaterialLabel();
             this.tabClasses = new System.Windows.Forms.TabPage();
             this.tabProfile = new System.Windows.Forms.TabPage();
+            this.lblFaceIdTitle = new MaterialSkin.Controls.MaterialLabel();
+            this.picCamera = new System.Windows.Forms.PictureBox();
+            this.btnStartCamera = new MaterialSkin.Controls.MaterialButton();
+            this.btnCaptureFace = new MaterialSkin.Controls.MaterialButton();
             this.btnSaveProfile = new MaterialSkin.Controls.MaterialButton();
             this.switchTeacher = new MaterialSkin.Controls.MaterialSwitch();
             this.switchStudent = new MaterialSkin.Controls.MaterialSwitch();
@@ -31,11 +35,13 @@
             this.tabSettings = new System.Windows.Forms.TabPage();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.cmsUserMenu = new MaterialSkin.Controls.MaterialContextMenuStrip();
-            this.tsmLogout = new MaterialSkin.Controls.MaterialToolStripMenuItem();
+            this.tsmLogout = new System.Windows.Forms.ToolStripMenuItem();
             this.btnUserAccount = new MaterialSkin.Controls.MaterialButton();
+            this.timerCamera = new System.Windows.Forms.Timer(this.components);
             this.materialTabControl1.SuspendLayout();
             this.tabHome.SuspendLayout();
             this.tabProfile.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.picCamera)).BeginInit();
             this.cmsUserMenu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -91,6 +97,10 @@
             // 
             // tabProfile
             // 
+            this.tabProfile.Controls.Add(this.lblFaceIdTitle);
+            this.tabProfile.Controls.Add(this.picCamera);
+            this.tabProfile.Controls.Add(this.btnStartCamera);
+            this.tabProfile.Controls.Add(this.btnCaptureFace);
             this.tabProfile.Controls.Add(this.btnSaveProfile);
             this.tabProfile.Controls.Add(this.switchTeacher);
             this.tabProfile.Controls.Add(this.switchStudent);
@@ -102,6 +112,69 @@
             this.tabProfile.TabIndex = 2;
             this.tabProfile.Text = "Hồ sơ cá nhân";
             this.tabProfile.UseVisualStyleBackColor = true;
+            // 
+            // lblFaceIdTitle
+            // 
+            this.lblFaceIdTitle.AutoSize = true;
+            this.lblFaceIdTitle.Depth = 0;
+            this.lblFaceIdTitle.Font = new System.Drawing.Font("Roboto", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
+            this.lblFaceIdTitle.Location = new System.Drawing.Point(450, 15);
+            this.lblFaceIdTitle.MouseState = MaterialSkin.MouseState.HOVER;
+            this.lblFaceIdTitle.Name = "lblFaceIdTitle";
+            this.lblFaceIdTitle.Size = new System.Drawing.Size(126, 19);
+            this.lblFaceIdTitle.TabIndex = 8;
+            this.lblFaceIdTitle.Text = "Thiết lập Face ID";
+            // 
+            // picCamera
+            // 
+            this.picCamera.BackColor = System.Drawing.Color.Black;
+            this.picCamera.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.picCamera.Location = new System.Drawing.Point(450, 40);
+            this.picCamera.Name = "picCamera";
+            this.picCamera.Size = new System.Drawing.Size(480, 270);
+            this.picCamera.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.picCamera.TabIndex = 5;
+            this.picCamera.TabStop = false;
+            // 
+            // btnStartCamera
+            // 
+            this.btnStartCamera.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.btnStartCamera.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            this.btnStartCamera.Depth = 0;
+            this.btnStartCamera.HighEmphasis = true;
+            this.btnStartCamera.Icon = null;
+            this.btnStartCamera.Location = new System.Drawing.Point(450, 325);
+            this.btnStartCamera.Margin = new System.Windows.Forms.Padding(4, 6, 4, 6);
+            this.btnStartCamera.MouseState = MaterialSkin.MouseState.HOVER;
+            this.btnStartCamera.Name = "btnStartCamera";
+            this.btnStartCamera.NoAccentTextColor = System.Drawing.Color.Empty;
+            this.btnStartCamera.Size = new System.Drawing.Size(115, 36);
+            this.btnStartCamera.TabIndex = 6;
+            this.btnStartCamera.Text = "BẬT CAMERA";
+            this.btnStartCamera.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            this.btnStartCamera.UseAccentColor = false;
+            this.btnStartCamera.UseVisualStyleBackColor = true;
+            this.btnStartCamera.Click += new System.EventHandler(this.btnStartCamera_Click);
+            // 
+            // btnCaptureFace
+            // 
+            this.btnCaptureFace.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.btnCaptureFace.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            this.btnCaptureFace.Depth = 0;
+            this.btnCaptureFace.HighEmphasis = true;
+            this.btnCaptureFace.Icon = null;
+            this.btnCaptureFace.Location = new System.Drawing.Point(580, 325);
+            this.btnCaptureFace.Margin = new System.Windows.Forms.Padding(4, 6, 4, 6);
+            this.btnCaptureFace.MouseState = MaterialSkin.MouseState.HOVER;
+            this.btnCaptureFace.Name = "btnCaptureFace";
+            this.btnCaptureFace.NoAccentTextColor = System.Drawing.Color.Empty;
+            this.btnCaptureFace.Size = new System.Drawing.Size(155, 36);
+            this.btnCaptureFace.TabIndex = 7;
+            this.btnCaptureFace.Text = "QUÉT & LƯU FACE ID";
+            this.btnCaptureFace.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            this.btnCaptureFace.UseAccentColor = true;
+            this.btnCaptureFace.UseVisualStyleBackColor = true;
+            this.btnCaptureFace.Click += new System.EventHandler(this.btnCaptureFace_Click);
             // 
             // btnSaveProfile
             // 
@@ -123,21 +196,35 @@
             this.btnSaveProfile.UseVisualStyleBackColor = true;
             this.btnSaveProfile.Click += new System.EventHandler(this.btnSaveProfile_Click);
             // 
-            // txtFullName
+            // switchTeacher
             // 
-            this.txtFullName.AnimateReadOnly = false;
-            this.txtFullName.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.txtFullName.Depth = 0;
-            this.txtFullName.Font = new System.Drawing.Font("Roboto", 16F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-            this.txtFullName.Hint = "Họ và tên";
-            this.txtFullName.Location = new System.Drawing.Point(40, 40);
-            this.txtFullName.MaxLength = 100;
-            this.txtFullName.MouseState = MaterialSkin.MouseState.OUT;
-            this.txtFullName.Multiline = false;
-            this.txtFullName.Name = "txtFullName";
-            this.txtFullName.Size = new System.Drawing.Size(350, 50);
-            this.txtFullName.TabIndex = 0;
-            this.txtFullName.Text = "";
+            this.switchTeacher.AutoSize = true;
+            this.switchTeacher.Depth = 0;
+            this.switchTeacher.Location = new System.Drawing.Point(40, 230);
+            this.switchTeacher.Margin = new System.Windows.Forms.Padding(0);
+            this.switchTeacher.MouseLocation = new System.Drawing.Point(-1, -1);
+            this.switchTeacher.MouseState = MaterialSkin.MouseState.HOVER;
+            this.switchTeacher.Name = "switchTeacher";
+            this.switchTeacher.Ripple = true;
+            this.switchTeacher.Size = new System.Drawing.Size(160, 37);
+            this.switchTeacher.TabIndex = 3;
+            this.switchTeacher.Text = "Vai trò Giáo viên";
+            this.switchTeacher.UseVisualStyleBackColor = true;
+            // 
+            // switchStudent
+            // 
+            this.switchStudent.AutoSize = true;
+            this.switchStudent.Depth = 0;
+            this.switchStudent.Location = new System.Drawing.Point(40, 180);
+            this.switchStudent.Margin = new System.Windows.Forms.Padding(0);
+            this.switchStudent.MouseLocation = new System.Drawing.Point(-1, -1);
+            this.switchStudent.MouseState = MaterialSkin.MouseState.HOVER;
+            this.switchStudent.Name = "switchStudent";
+            this.switchStudent.Ripple = true;
+            this.switchStudent.Size = new System.Drawing.Size(155, 37);
+            this.switchStudent.TabIndex = 2;
+            this.switchStudent.Text = "Vai trò Học sinh";
+            this.switchStudent.UseVisualStyleBackColor = true;
             // 
             // txtPhone
             // 
@@ -155,35 +242,21 @@
             this.txtPhone.TabIndex = 1;
             this.txtPhone.Text = "";
             // 
-            // switchStudent
+            // txtFullName
             // 
-            this.switchStudent.AutoSize = true;
-            this.switchStudent.Depth = 0;
-            this.switchStudent.Location = new System.Drawing.Point(40, 180);
-            this.switchStudent.Margin = new System.Windows.Forms.Padding(0);
-            this.switchStudent.MouseLocation = new System.Drawing.Point(-1, -1);
-            this.switchStudent.MouseState = MaterialSkin.MouseState.HOVER;
-            this.switchStudent.Name = "switchStudent";
-            this.switchStudent.Ripple = true;
-            this.switchStudent.Size = new System.Drawing.Size(155, 37);
-            this.switchStudent.TabIndex = 2;
-            this.switchStudent.Text = "Vai trò Học sinh";
-            this.switchStudent.UseVisualStyleBackColor = true;
-            // 
-            // switchTeacher
-            // 
-            this.switchTeacher.AutoSize = true;
-            this.switchTeacher.Depth = 0;
-            this.switchTeacher.Location = new System.Drawing.Point(40, 230);
-            this.switchTeacher.Margin = new System.Windows.Forms.Padding(0);
-            this.switchTeacher.MouseLocation = new System.Drawing.Point(-1, -1);
-            this.switchTeacher.MouseState = MaterialSkin.MouseState.HOVER;
-            this.switchTeacher.Name = "switchTeacher";
-            this.switchTeacher.Ripple = true;
-            this.switchTeacher.Size = new System.Drawing.Size(160, 37);
-            this.switchTeacher.TabIndex = 3;
-            this.switchTeacher.Text = "Vai trò Giáo viên";
-            this.switchTeacher.UseVisualStyleBackColor = true;
+            this.txtFullName.AnimateReadOnly = false;
+            this.txtFullName.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.txtFullName.Depth = 0;
+            this.txtFullName.Font = new System.Drawing.Font("Roboto", 16F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
+            this.txtFullName.Hint = "Họ và tên";
+            this.txtFullName.Location = new System.Drawing.Point(40, 40);
+            this.txtFullName.MaxLength = 100;
+            this.txtFullName.MouseState = MaterialSkin.MouseState.OUT;
+            this.txtFullName.Multiline = false;
+            this.txtFullName.Name = "txtFullName";
+            this.txtFullName.Size = new System.Drawing.Size(350, 50);
+            this.txtFullName.TabIndex = 0;
+            this.txtFullName.Text = "";
             // 
             // tabSettings
             // 
@@ -208,7 +281,7 @@
             this.tsmLogout});
             this.cmsUserMenu.MouseState = MaterialSkin.MouseState.HOVER;
             this.cmsUserMenu.Name = "cmsUserMenu";
-            this.cmsUserMenu.Size = new System.Drawing.Size(130, 30);
+            this.cmsUserMenu.Size = new System.Drawing.Size(130, 28);
             // 
             // tsmLogout
             // 
@@ -239,6 +312,11 @@
             this.btnUserAccount.UseVisualStyleBackColor = true;
             this.btnUserAccount.Click += new System.EventHandler(this.btnUserAccount_Click);
             // 
+            // timerCamera
+            // 
+            this.timerCamera.Interval = 30;
+            this.timerCamera.Tick += new System.EventHandler(this.timerCamera_Tick);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -258,6 +336,7 @@
             this.tabHome.PerformLayout();
             this.tabProfile.ResumeLayout(false);
             this.tabProfile.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.picCamera)).EndInit();
             this.cmsUserMenu.ResumeLayout(false);
             this.ResumeLayout(false);
 
@@ -280,5 +359,12 @@
         private MaterialSkin.Controls.MaterialContextMenuStrip cmsUserMenu;
         private System.Windows.Forms.ToolStripMenuItem tsmLogout;
         private MaterialSkin.Controls.MaterialButton btnUserAccount;
+
+        // --- FACE ID CONTROLS ---
+        private System.Windows.Forms.PictureBox picCamera;
+        private MaterialSkin.Controls.MaterialButton btnStartCamera;
+        private MaterialSkin.Controls.MaterialButton btnCaptureFace;
+        private MaterialSkin.Controls.MaterialLabel lblFaceIdTitle;
+        private System.Windows.Forms.Timer timerCamera;
     }
 }

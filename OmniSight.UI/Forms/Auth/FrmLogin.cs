@@ -70,6 +70,19 @@ namespace OmniSight.UI.Forms.Auth
             registerForm.Show();
             this.Hide();
         }
+        // ĐĂNG NHẬP BẰNG KHUÔN MẶT
+        private void btnLoginFace_Click(object sender, EventArgs e)
+        {
+            // Mở form quét mặt (FrmFaceLogin bạn cần tạo ở bước trước)
+            using (var faceLoginForm = _serviceProvider.GetRequiredService<FrmFaceLogin>())
+            {
+                if (faceLoginForm.ShowDialog() == DialogResult.OK)
+                {
+                    MessageBox.Show($"Xác thực khuôn mặt thành công! Chào mừng {_authService.CurrentUser.FullName}.", "Thành công");
+                    GoToMainForm();
+                }
+            }
+        }
 
         // Hàm chung để chuyển form, tránh lặp code
         private void GoToMainForm()
@@ -78,5 +91,6 @@ namespace OmniSight.UI.Forms.Auth
             mainForm.Show();
             this.Hide();
         }
+
     }
 }

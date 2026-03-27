@@ -8,6 +8,7 @@ using MimeKit;
 using OmniSight.Core.Entities;
 using OmniSight.Data;
 using System.Text.Json;
+using System.Globalization;
 
 namespace OmniSight.Services
 {
@@ -265,6 +266,69 @@ namespace OmniSight.Services
 
             if (token == null || nowUtc > token.ExpiryDate) return false;
             return true;
+        }
+        // 1. Hàm lấy tất cả User đã định danh khuôn mặt
+        public async Task<List<User>> GetAllUsersWithFaceDataAsync()
+        {
+            return await _db.Users
+                .Where(u => u.FaceEmbedding != null && u.FaceEmbedding != "")
+                .ToListAsync();
+        }
+
+        // Thay thế hàm tính khoảng cách cũ bằng hàm tính độ tương đồng Cosine
+        private double CalculateCosineSimilarity(float[] v1, float[] v2)
+        {
+            double dotProduct = 0, normA = 0, normB = 0;
+            for (int i = 0; i < v1.Length; i++)
+            {
+                dotProduct += v1[i] * v2[i];
+                normA += v1[i] * v1[i];
+                normB += v2[i] * v2[i];
+            }
+            return dotProduct / (Math.Sqrt(normA) * Math.Sqrt(normB));
+        }
+
+        public async Task<(bool success, User? user)> LoginWithFaceAsync(float[] currentEmbedding)
+        {
+            try
+            {
+                var usersWithFace = await GetAllUsersWithFaceDataAsync();
+                User? matchedUser = null;
+                double maxSimilarity = -1;
+                double threshold = 0.32; // Giảm xuống 0.32 để AI "dễ tính" hơn một chút
+
+                foreach (var user in usersWithFace)
+                {
+                    var savedEmbedding = user.FaceEmbedding.Replace(',', '.')
+                                             .Split(';')
+                                             .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+                                             .ToArray();
+
+                    double similarity = CalculateCosineSimilarity(currentEmbedding, savedEmbedding);
+
+                    // DÒNG NÀY ĐỂ DEBUG: Bạn nhìn vào cửa sổ Output trong VS sẽ thấy số này
+                    System.Diagnostics.Debug.WriteLine($"So khớp với {user.FullName}: Độ tương đồng = {similarity:F4}");
+
+                    if (similarity > maxSimilarity)
+                    {
+                        maxSimilarity = similarity;
+                        matchedUser = user;
+                    }
+                }
+
+                if (maxSimilarity >= threshold && matchedUser != null)
+                {
+                    CurrentUser = matchedUser;
+                    SaveSession(matchedUser.UserId);
+                    return (true, matchedUser);
+                }
+                return (false, null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LỖI AI SO KHỚP: " + ex.Message);
+                return (false, null);
+            }
         }
     }
 }

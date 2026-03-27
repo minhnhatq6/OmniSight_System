@@ -30,5 +30,14 @@ namespace OmniSight.Services
 
             return true;
         }
+        public async Task<bool> UpdateFaceEmbeddingAsync(int userId, string embedding)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.FaceEmbedding = embedding;
+            await _db.SaveChangesAsync();
+            return true;
+        }
     }
 }

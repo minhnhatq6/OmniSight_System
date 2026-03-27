@@ -5,5 +5,6 @@ namespace OmniSight.Services
     public interface IUserService
     {
         Task<bool> UpdateProfileAsync(int userId, string fullName, string phone, bool isStudent, bool isTeacher);
+        Task<bool> UpdateFaceEmbeddingAsync(int userId, string embedding);
     }
 }

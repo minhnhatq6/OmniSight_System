@@ -21,6 +21,7 @@ namespace OmniSight.UI.Forms.Auth
             this.txtPassword = new MaterialSkin.Controls.MaterialTextBox();
             this.btnLoginEmail = new MaterialSkin.Controls.MaterialButton();
             this.btnLoginGoogle = new MaterialSkin.Controls.MaterialButton();
+            this.btnLoginFace = new MaterialSkin.Controls.MaterialButton();
             this.lnkRegister = new MaterialSkin.Controls.MaterialLabel();
             this.SuspendLayout();
             // 
@@ -101,17 +102,37 @@ namespace OmniSight.UI.Forms.Auth
             this.btnLoginGoogle.UseVisualStyleBackColor = true;
             this.btnLoginGoogle.Click += new System.EventHandler(this.btnLoginGoogle_Click);
             // 
+            // btnLoginFace
+            // 
+            this.btnLoginFace.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.btnLoginFace.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            this.btnLoginFace.Depth = 0;
+            this.btnLoginFace.HighEmphasis = true;
+            this.btnLoginFace.Icon = null;
+            this.btnLoginFace.Location = new System.Drawing.Point(40, 340);
+            this.btnLoginFace.Margin = new System.Windows.Forms.Padding(4, 6, 4, 6);
+            this.btnLoginFace.MouseState = MaterialSkin.MouseState.HOVER;
+            this.btnLoginFace.Name = "btnLoginFace";
+            this.btnLoginFace.NoAccentTextColor = System.Drawing.Color.Empty;
+            this.btnLoginFace.Size = new System.Drawing.Size(350, 36);
+            this.btnLoginFace.TabIndex = 4;
+            this.btnLoginFace.Text = "ĐĂNG NHẬP BẰNG KHUÔN MẶT";
+            this.btnLoginFace.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined;
+            this.btnLoginFace.UseAccentColor = true;
+            this.btnLoginFace.UseVisualStyleBackColor = true;
+            this.btnLoginFace.Click += new System.EventHandler(this.btnLoginFace_Click);
+            // 
             // lnkRegister
             // 
             this.lnkRegister.AutoSize = true;
             this.lnkRegister.Cursor = System.Windows.Forms.Cursors.Hand;
             this.lnkRegister.Depth = 0;
             this.lnkRegister.Font = new System.Drawing.Font("Roboto", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-            this.lnkRegister.Location = new System.Drawing.Point(40, 350);
+            this.lnkRegister.Location = new System.Drawing.Point(40, 400);
             this.lnkRegister.MouseState = MaterialSkin.MouseState.HOVER;
             this.lnkRegister.Name = "lnkRegister";
             this.lnkRegister.Size = new System.Drawing.Size(176, 19);
-            this.lnkRegister.TabIndex = 4;
+            this.lnkRegister.TabIndex = 5;
             this.lnkRegister.Text = "Chưa có tài khoản? Đăng ký";
             this.lnkRegister.Click += new System.EventHandler(this.lnkRegister_Click);
             // 
@@ -119,8 +140,9 @@ namespace OmniSight.UI.Forms.Auth
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(430, 420);
+            this.ClientSize = new System.Drawing.Size(430, 460); // Tăng chiều cao Form
             this.Controls.Add(this.lnkRegister);
+            this.Controls.Add(this.btnLoginFace);
             this.Controls.Add(this.btnLoginGoogle);
             this.Controls.Add(this.btnLoginEmail);
             this.Controls.Add(this.txtPassword);
@@ -138,6 +160,7 @@ namespace OmniSight.UI.Forms.Auth
         private MaterialSkin.Controls.MaterialTextBox txtPassword;
         private MaterialSkin.Controls.MaterialButton btnLoginEmail;
         private MaterialSkin.Controls.MaterialButton btnLoginGoogle;
+        private MaterialSkin.Controls.MaterialButton btnLoginFace;
         private MaterialSkin.Controls.MaterialLabel lnkRegister;
     }
 }
