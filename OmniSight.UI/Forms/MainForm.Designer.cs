@@ -23,6 +23,11 @@
             tabHome = new TabPage();
             lblHomeWelcome = new MaterialSkin.Controls.MaterialLabel();
             tabClasses = new TabPage();
+            btnOpenJoinClass = new MaterialSkin.Controls.MaterialButton();
+            lvwClasses = new MaterialSkin.Controls.MaterialListView();
+            columnHeader1 = new ColumnHeader();
+            columnHeader2 = new ColumnHeader();
+            btnOpenCreateClass = new MaterialSkin.Controls.MaterialButton();
             tabProfile = new TabPage();
             lblFaceIdTitle = new MaterialSkin.Controls.MaterialLabel();
             picCamera = new PictureBox();
@@ -41,6 +46,7 @@
             timerCamera = new System.Windows.Forms.Timer(components);
             materialTabControl1.SuspendLayout();
             tabHome.SuspendLayout();
+            tabClasses.SuspendLayout();
             tabProfile.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picCamera).BeginInit();
             cmsUserMenu.SuspendLayout();
@@ -91,15 +97,91 @@
             // 
             // tabClasses
             // 
+            tabClasses.Controls.Add(btnOpenJoinClass);
+            tabClasses.Controls.Add(lvwClasses);
+            tabClasses.Controls.Add(btnOpenCreateClass);
             tabClasses.ImageKey = "Class";
             tabClasses.Location = new Point(4, 31);
             tabClasses.Margin = new Padding(3, 2, 3, 2);
             tabClasses.Name = "tabClasses";
-            tabClasses.Padding = new Padding(3, 2, 3, 2);
+            tabClasses.Padding = new Padding(15);
             tabClasses.Size = new Size(861, 365);
             tabClasses.TabIndex = 1;
             tabClasses.Text = "Lớp học của tôi";
             tabClasses.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenJoinClass
+            // 
+            btnOpenJoinClass.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenJoinClass.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnOpenJoinClass.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            btnOpenJoinClass.Depth = 0;
+            btnOpenJoinClass.HighEmphasis = true;
+            btnOpenJoinClass.Icon = null;
+            btnOpenJoinClass.Location = new Point(598, 15);
+            btnOpenJoinClass.Margin = new Padding(4, 6, 4, 6);
+            btnOpenJoinClass.MouseState = MaterialSkin.MouseState.HOVER;
+            btnOpenJoinClass.Name = "btnOpenJoinClass";
+            btnOpenJoinClass.NoAccentTextColor = Color.Empty;
+            btnOpenJoinClass.Size = new Size(122, 36);
+            btnOpenJoinClass.TabIndex = 2;
+            btnOpenJoinClass.Text = "Tham Gia Lớp";
+            btnOpenJoinClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnOpenJoinClass.UseAccentColor = false;
+            btnOpenJoinClass.UseVisualStyleBackColor = true;
+            btnOpenJoinClass.Click += btnOpenJoinClass_Click;
+            // 
+            // lvwClasses
+            // 
+            lvwClasses.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lvwClasses.AutoSizeTable = false;
+            lvwClasses.BackColor = Color.FromArgb(255, 255, 255);
+            lvwClasses.BorderStyle = BorderStyle.None;
+            lvwClasses.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2 });
+            lvwClasses.Depth = 0;
+            lvwClasses.FullRowSelect = true;
+            lvwClasses.Location = new Point(15, 60);
+            lvwClasses.MinimumSize = new Size(200, 100);
+            lvwClasses.MouseLocation = new Point(-1, -1);
+            lvwClasses.MouseState = MaterialSkin.MouseState.OUT;
+            lvwClasses.Name = "lvwClasses";
+            lvwClasses.OwnerDraw = true;
+            lvwClasses.Size = new Size(825, 290);
+            lvwClasses.TabIndex = 1;
+            lvwClasses.UseCompatibleStateImageBehavior = false;
+            lvwClasses.View = View.Details;
+            lvwClasses.MouseDoubleClick += lvwClasses_MouseDoubleClick;
+            // 
+            // columnHeader1
+            // 
+            columnHeader1.Text = "Tên lớp học";
+            columnHeader1.Width = 500;
+            // 
+            // columnHeader2
+            // 
+            columnHeader2.Text = "Mã tham gia";
+            columnHeader2.Width = 200;
+            // 
+            // btnOpenCreateClass
+            // 
+            btnOpenCreateClass.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenCreateClass.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnOpenCreateClass.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            btnOpenCreateClass.Depth = 0;
+            btnOpenCreateClass.HighEmphasis = true;
+            btnOpenCreateClass.Icon = null;
+            btnOpenCreateClass.Location = new Point(730, 15);
+            btnOpenCreateClass.Margin = new Padding(4, 6, 4, 6);
+            btnOpenCreateClass.MouseState = MaterialSkin.MouseState.HOVER;
+            btnOpenCreateClass.Name = "btnOpenCreateClass";
+            btnOpenCreateClass.NoAccentTextColor = Color.Empty;
+            btnOpenCreateClass.Size = new Size(112, 36);
+            btnOpenCreateClass.TabIndex = 0;
+            btnOpenCreateClass.Text = "Tạo lớp mới";
+            btnOpenCreateClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnOpenCreateClass.UseAccentColor = false;
+            btnOpenCreateClass.UseVisualStyleBackColor = true;
+            btnOpenCreateClass.Click += btnOpenCreateClass_Click;
             // 
             // tabProfile
             // 
@@ -356,6 +438,8 @@
             materialTabControl1.ResumeLayout(false);
             tabHome.ResumeLayout(false);
             tabHome.PerformLayout();
+            tabClasses.ResumeLayout(false);
+            tabClasses.PerformLayout();
             tabProfile.ResumeLayout(false);
             tabProfile.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)picCamera).EndInit();
@@ -388,5 +472,10 @@
         private MaterialSkin.Controls.MaterialButton btnCaptureFace;
         private MaterialSkin.Controls.MaterialLabel lblFaceIdTitle;
         private System.Windows.Forms.Timer timerCamera;
+        private MaterialSkin.Controls.MaterialButton btnOpenCreateClass;
+        private MaterialSkin.Controls.MaterialListView lvwClasses;
+        private ColumnHeader columnHeader1;
+        private ColumnHeader columnHeader2;
+        private MaterialSkin.Controls.MaterialButton btnOpenJoinClass;
     }
 }

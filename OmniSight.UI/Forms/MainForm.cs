@@ -2,6 +2,7 @@
 using Emgu.CV.Structure;
 using MaterialSkin;
 using MaterialSkin.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using OmniSight.Services;
 using System;
 using System.Drawing;
@@ -28,6 +29,7 @@ namespace OmniSight.UI.Forms
             _userService = userService;
             _serviceProvider = serviceProvider;
             _faceAiService = faceAiService;
+            LoadClassList(); // Load danh sách lớp học ngay khi mở form
 
             // Cấu hình Theme Material
             var materialSkinManager = MaterialSkinManager.Instance;
@@ -156,6 +158,100 @@ namespace OmniSight.UI.Forms
         {
             _faceAiService.StopCamera();
             if (!_isLoggingOut) Application.Exit();
+        }
+
+        private void btnOpenCreateClass_Click(object sender, EventArgs e)
+        {
+
+            // 1. Lấy ClassService ra từ Dependency Injection (bạn đã có sẵn _serviceProvider trong MainForm)
+            var classService = _serviceProvider.GetRequiredService<ClassService>();
+
+            // 2. Lấy ID của người dùng đang đăng nhập
+            // (Lưu ý: Bạn hãy thay _currentUser.UserId bằng biến lưu User ID thực tế trong MainForm của bạn nhé)
+            int currentTeacherId = _authService.CurrentUser?.UserId ?? 0; // Giả sử UserId là int, nếu không có user nào đăng nhập thì mặc định là 0    
+
+            // 3. Khởi tạo và mở Form Tạo Lớp
+            using (var frmCreate = new FrmCreateClass(classService, currentTeacherId))
+            {
+                // ShowDialog() sẽ mở form lên và bắt người dùng phải thao tác xong mới được quay lại MainForm
+                var result = frmCreate.ShowDialog();
+
+                // 4. Kiểm tra xem người dùng đã bấm "Tạo lớp" thành công hay bấm nút "X" tắt đi
+                if (result == DialogResult.OK)
+                {
+                    // Nếu tạo thành công, gọi hàm load lại danh sách lớp học để hiển thị lên màn hình
+                    LoadClassList();
+                }
+            }
+        }
+
+        private async void LoadClassList()
+        {
+            lvwClasses.Items.Clear();
+
+            var _currentUser = _authService.CurrentUser;
+
+            var _classService = _serviceProvider.GetRequiredService<ClassService>();
+
+            // Giả sử bạn có biến check role (Dựa trên switchTeacher/switchStudent trong Profile)
+            if (_currentUser.IsTeacher)
+            {
+                var classes = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
+                foreach (var c in classes)
+                {
+                    var item = new ListViewItem(c.ClassName);
+                    item.SubItems.Add(c.JoinCode); // Giáo viên thì hiện Join Code
+                    item.Tag = c.ClassId;
+                    lvwClasses.Items.Add(item);
+                }
+            }
+            else // Chế độ Sinh viên
+            {
+                var classes = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
+                foreach (var c in classes)
+                {
+                    var item = new ListViewItem(c.ClassName);
+                    item.SubItems.Add("******"); // Sinh viên thì giấu Join Code đi
+                    item.Tag = c.ClassId;
+                    lvwClasses.Items.Add(item);
+                }
+            }
+        }
+
+        private void btnOpenJoinClass_Click(object sender, EventArgs e)
+        {
+            var classService = _serviceProvider.GetRequiredService<ClassService>();
+            int currentUserId = _authService.CurrentUser?.UserId ?? 0;
+
+            using (var frmJoin = new FrmJoinClass(classService, currentUserId))
+            {
+                if (frmJoin.ShowDialog() == DialogResult.OK)
+                {
+                    LoadClassList(); // Load lại danh sách lớp để thấy lớp vừa tham gia
+                }
+            }
+        }
+
+        private void lvwClasses_MouseDoubleClick(object sender, EventArgs e)
+        {
+            var _currentUser = _authService.CurrentUser; // Lấy thông tin người dùng hiện tại (nếu chưa có sẵn trong biến toàn cục)
+            // 1. Kiểm tra xem người dùng có thực sự đang chọn 1 dòng nào không
+            if (lvwClasses.SelectedItems.Count == 0) return;
+
+            // 2. Lấy dữ liệu từ dòng đang được chọn
+            var selectedItem = lvwClasses.SelectedItems[0];
+            string className = selectedItem.Text;       // Lấy tên lớp
+            int classId = (int)selectedItem.Tag;        // Lấy cái ID lớp học đã giấu lúc nãy
+
+            // 3. Lấy Service và ID người dùng hiện tại
+            var streamService = _serviceProvider.GetRequiredService<StreamService>();
+            int currentUserId = _currentUser.UserId;
+
+            // 4. Mở Form Chi tiết Lớp học
+            using (var frmDetail = new FrmClassDetail(streamService, currentUserId, classId, className))
+            {
+                frmDetail.ShowDialog(); // Mở form lên
+            }
         }
     }
 }
