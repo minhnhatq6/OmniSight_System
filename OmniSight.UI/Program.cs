@@ -53,6 +53,24 @@ namespace OmniSight.UI
                 .Build();
 
             ServiceProvider = host.Services;
+
+            // --- SEED DATA (KHỞI TẠO MÔN HỌC MẪU NẾU TRỐNG) ---
+            using (var scope = ServiceProvider.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<OmniSightDbContext>();
+                if (!db.Subjects.Any())
+                {
+                    db.Subjects.AddRange(
+                        new Subject { SubjectName = "Toán Học" },
+                        new Subject { SubjectName = "Vật Lý" },
+                        new Subject { SubjectName = "Hóa Học" },
+                        new Subject { SubjectName = "Tiếng Anh" },
+                        new Subject { SubjectName = "Tin Học" }
+                    );
+                    db.SaveChanges();
+                }
+            }
+
             var authService = ServiceProvider.GetRequiredService<AuthService>();
 
             // 3. XỬ LÝ NẾU MỞ TỪ LINK (DEEP LINKING)

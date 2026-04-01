@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using MaterialSkin.Controls;
@@ -14,10 +14,11 @@ namespace OmniSight.UI.Forms
         private readonly ClassService _classService;
 
         // Constructor yêu cầu truyền vào Service, ID người dùng và ID của Lớp học đang mở
-        public FrmClassDetail(StreamService streamService, int currentUserId, int classId, string className)
+        public FrmClassDetail(StreamService streamService, ClassService classService, int currentUserId, int classId, string className)
         {
             InitializeComponent();
             _streamService = streamService;
+            _classService = classService;
             _currentUserId = currentUserId;
             _classId = classId;
 
@@ -38,7 +39,6 @@ namespace OmniSight.UI.Forms
                 // Giả sử bạn đã kéo lvwMembers vào tab "Mọi người"
                 lvwMembers.Items.Clear();
                 var members = await _classService.GetClassMembersAsync(_classId);
-                MessageBox.Show($"Tìm thấy {members.Count} thành viên trong lớp này.");
                 foreach (var m in members)
                 {
                     var item = new ListViewItem(m.Student.Username); // Cột 1: Họ tên
@@ -51,7 +51,7 @@ namespace OmniSight.UI.Forms
                     lvwMembers.Items.Add(item);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Nếu lvwMembers chưa có cột, bạn có thể khởi tạo nhanh bằng code:
                 // lvwMembers.Columns.Add("Họ tên", 200);
