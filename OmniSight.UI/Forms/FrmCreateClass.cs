@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using MaterialSkin.Controls;
 using OmniSight.Services;
@@ -23,15 +23,21 @@ namespace OmniSight.UI.Forms
         {
             string className = txtClassName.Text.Trim();
 
-            // Tạm thời gán cứng SubjectId = 1 để test chức năng Tạo lớp trước. 
-            // (Sau này bạn làm tính năng Quản lý môn học xong thì thay bằng cmbSubject.SelectedValue)
-            int subjectId = (int)cmbSubjects.SelectedValue;
-
+            // 1. Kiểm tra tên lớp
             if (string.IsNullOrEmpty(className))
             {
                 MessageBox.Show("Vui lòng nhập tên lớp học!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            // 2. Kiểm tra môn học (SelectedValue không được null)
+            if (cmbSubjects.SelectedValue == null)
+            {
+                MessageBox.Show("Vui lòng chọn môn học cho lớp!\n(Nếu danh sách trống, vui lòng thêm môn học vào Database trước)", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int subjectId = (int)cmbSubjects.SelectedValue;
 
             try
             {

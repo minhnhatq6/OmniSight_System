@@ -1,4 +1,4 @@
-﻿using MaterialSkin.Controls;
+using MaterialSkin.Controls;
 using OmniSight.Services;
 using System;
 using System.Windows.Forms;
@@ -47,7 +47,10 @@ namespace OmniSight.UI.Forms
                 return;
             }
 
-            int userId = _authService.CurrentUser.UserId;
+            var user = _authService.CurrentUser;
+            if (user == null) return;
+
+            int userId = user.UserId;
 
             // Gọi hàm Update
             bool success = await _userService.UpdateProfileAsync(
@@ -58,13 +61,13 @@ namespace OmniSight.UI.Forms
                 switchTeacher.Checked
             );
 
-            if (success)
+            if (success && user != null)
             {
                 // Cập nhật lại session hiện tại trong app
-                _authService.CurrentUser.FullName = txtFullName.Text;
-                _authService.CurrentUser.Phone = txtPhone.Text;
-                _authService.CurrentUser.IsStudent = switchStudent.Checked;
-                _authService.CurrentUser.IsTeacher = switchTeacher.Checked;
+                user.FullName = txtFullName.Text;
+                user.Phone = txtPhone.Text;
+                user.IsStudent = switchStudent.Checked;
+                user.IsTeacher = switchTeacher.Checked;
 
                 MessageBox.Show("Cập nhật hồ sơ thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();

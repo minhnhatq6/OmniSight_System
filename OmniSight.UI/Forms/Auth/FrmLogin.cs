@@ -25,7 +25,7 @@ namespace OmniSight.UI.Forms.Auth
                 var user = _authService.CurrentUser;
 
                 // KIỂM TRA: Nếu user chưa có mật khẩu (do mới Login Google lần đầu)
-                if (string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_AUTH")
+                if (user == null || string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_AUTH")
                 {
                     using (var setPassForm = _serviceProvider.GetRequiredService<FrmSetPassword>())
                     {
@@ -78,7 +78,7 @@ namespace OmniSight.UI.Forms.Auth
             {
                 if (faceLoginForm.ShowDialog() == DialogResult.OK)
                 {
-                    MessageBox.Show($"Xác thực khuôn mặt thành công! Chào mừng {_authService.CurrentUser.FullName}.", "Thành công");
+                    MessageBox.Show($"Xác thực khuôn mặt thành công! Chào mừng {_authService.CurrentUser?.FullName}.", "Thành công");
                     GoToMainForm();
                 }
             }

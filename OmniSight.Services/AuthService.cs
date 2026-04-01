@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+using BCrypt.Net;
 using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using MailKit.Net.Smtp;
@@ -63,7 +63,7 @@ namespace OmniSight.Services
         // --- 2. ĐĂNG NHẬP EMAIL/PASSWORD ---
         public async Task<(bool success, string message)> LoginWithEmailAsync(string email, string password)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email || u.Username == email);
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email || u.Username == email);
 
             if (user == null || string.IsNullOrEmpty(user.PasswordHash))
             {
@@ -107,12 +107,12 @@ namespace OmniSight.Services
                 var payload = await GoogleJsonWebSignature.ValidateAsync(credential.Token.IdToken);
 
                 // Kiểm tra theo GoogleId
-                var user = await _db.Users.FirstOrDefaultAsync(u => u.GoogleId == payload.Subject);
+                var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.GoogleId == payload.Subject);
 
                 if (user == null)
                 {
                     // Nếu chưa có GoogleId, tìm theo Email để liên kết
-                    user = await _db.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+                    user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == payload.Email);
 
                     if (user != null)
                     {
@@ -176,7 +176,7 @@ namespace OmniSight.Services
                 if (data.TryGetProperty("UserId", out var idElement))
                 {
                     int userId = idElement.GetInt32();
-                    var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                    var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
                     if (user != null) { CurrentUser = user; return true; }
                 }
             }
@@ -270,7 +270,7 @@ namespace OmniSight.Services
         // 1. Hàm lấy tất cả User đã định danh khuôn mặt
         public async Task<List<User>> GetAllUsersWithFaceDataAsync()
         {
-            return await _db.Users
+            return await _db.Users.AsNoTracking()
                 .Where(u => u.FaceEmbedding != null && u.FaceEmbedding != "")
                 .ToListAsync();
         }

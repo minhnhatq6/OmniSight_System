@@ -1,4 +1,4 @@
-﻿using Emgu.CV;
+using Emgu.CV;
 using Emgu.CV.Structure;
 using MaterialSkin.Controls;
 using OmniSight.Services;
@@ -52,7 +52,7 @@ namespace OmniSight.UI.Forms.Auth
             }
         }
 
-        private async void ScanTimer_Tick(object sender, EventArgs e)
+        private async void ScanTimer_Tick(object? sender, EventArgs e)
         {
             using (var frame = _faceAiService.GetFrame())
             {

@@ -1,4 +1,4 @@
-﻿using Emgu.CV;
+using Emgu.CV;
 using Emgu.CV.Structure;
 using MaterialSkin;
 using MaterialSkin.Controls;
@@ -114,7 +114,7 @@ namespace OmniSight.UI.Forms
 
         private void timerCamera_Tick(object sender, EventArgs e)
         {
-            using (Mat frame = _faceAiService.GetFrame())
+            using (var frame = _faceAiService.GetFrame())
             {
                 if (frame != null && !frame.IsEmpty)
                 {
@@ -128,7 +128,7 @@ namespace OmniSight.UI.Forms
 
         private async void btnCaptureFace_Click(object sender, EventArgs e)
         {
-            using (Mat frame = _faceAiService.GetFrame())
+            using (var frame = _faceAiService.GetFrame())
             {
                 if (frame == null || frame.IsEmpty) return;
 
@@ -190,6 +190,7 @@ namespace OmniSight.UI.Forms
             lvwClasses.Items.Clear();
 
             var _currentUser = _authService.CurrentUser;
+            if (_currentUser == null) return;
 
             var _classService = _serviceProvider.GetRequiredService<ClassService>();
 
@@ -241,14 +242,15 @@ namespace OmniSight.UI.Forms
             // 2. Lấy dữ liệu từ dòng đang được chọn
             var selectedItem = lvwClasses.SelectedItems[0];
             string className = selectedItem.Text;       // Lấy tên lớp
-            int classId = (int)selectedItem.Tag;        // Lấy cái ID lớp học đã giấu lúc nãy
+            int classId = (int)(selectedItem.Tag ?? 0);        // Lấy cái ID lớp học đã giấu lúc nãy
 
             // 3. Lấy Service và ID người dùng hiện tại
             var streamService = _serviceProvider.GetRequiredService<StreamService>();
-            int currentUserId = _currentUser.UserId;
+            var classService = _serviceProvider.GetRequiredService<ClassService>();
+            int currentUserId = _currentUser?.UserId ?? 0;
 
             // 4. Mở Form Chi tiết Lớp học
-            using (var frmDetail = new FrmClassDetail(streamService, currentUserId, classId, className))
+            using (var frmDetail = new FrmClassDetail(streamService, classService, currentUserId, classId, className))
             {
                 frmDetail.ShowDialog(); // Mở form lên
             }
