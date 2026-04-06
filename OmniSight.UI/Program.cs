@@ -40,6 +40,7 @@ namespace OmniSight.UI
                     services.AddScoped<IUserService, UserService>();
                     services.AddScoped<ClassService>();
                     services.AddScoped<StreamService>();
+                    services.AddScoped<AssignmentService>();
                     // THÊM DÒNG NÀY ĐỂ FIX LỖI CRASH:
                     services.AddScoped<FaceAiService>();
                     // Đăng ký các Form

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,26 @@ namespace OmniSight.Services
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
+        // --- HÀM MỚI: TÌM HOẶC TẠO MÔN HỌC ---
+        public async Task<Subject> GetOrCreateSubjectAsync(string subjectName)
+        {
+            // Kiểm tra xem tên môn học đã tồn tại chưa (không phân biệt hoa thường)
+            var existingSubject = await _context.Subjects
+                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == subjectName.ToLower());
+
+            if (existingSubject != null)
+            {
+                return existingSubject; // Nếu có rồi thì trả về luôn
+            }
+
+            // Nếu chưa có thì tạo mới
+            var newSubject = new Subject { SubjectName = subjectName };
+            _context.Subjects.Add(newSubject);
+            await _context.SaveChangesAsync();
+
+            return newSubject;
+        }
+
         // 1. Chức năng Giáo viên Tạo lớp
         public async Task<Class> CreateClassAsync(string className, int teacherId, int subjectId)
         {
@@ -39,7 +60,6 @@ namespace OmniSight.Services
             _context.Classes.Add(newClass);
             await _context.SaveChangesAsync();
 
-            // Xong! Không cần đụng tới bảng ClassMember.
             return newClass;
         }
 
@@ -53,7 +73,7 @@ namespace OmniSight.Services
 
         public async Task<List<Subject>> GetSubjectsAsync()
         {
-            return await _context.Subjects.ToListAsync(); // Lấy toàn bộ môn học từ DB [cite: 61]
+            return await _context.Subjects.ToListAsync();
         }
 
         // Lấy danh sách cho Sinh viên (KHÔNG lấy Join Code - Bảo mật)
@@ -61,31 +81,28 @@ namespace OmniSight.Services
         {
             return await _context.ClassMembers
                 .Where(m => m.StudentId == studentId)
-                .Select(m => m.Class) // Kết nối sang bảng Class để lấy thông tin lớp
+                .Select(m => m.Class)
                 .ToListAsync();
         }
 
         public async Task<List<ClassMember>> GetClassMembersAsync(int classId)
         {
             return await _context.ClassMembers
-                .Include(m => m.Student) // Kéo theo thông tin User để lấy tên/email [cite: 61]
+                .Include(m => m.Student)
                 .Where(m => m.ClassId == classId)
                 .ToListAsync();
         }
 
-        // 2. Chức năng Học sinh Tham gia lớp (Dùng cho bước tiếp theo)
+        // 2. Chức năng Học sinh Tham gia lớp 
         public async Task<bool> JoinClassAsync(string joinCode, int studentId)
         {
-            // Tìm lớp học dựa trên mã code
             var targetClass = await _context.Classes.FirstOrDefaultAsync(c => c.JoinCode == joinCode);
-            if (targetClass == null) return false; // Mã code sai hoặc lớp không tồn tại
+            if (targetClass == null) return false;
 
-            // Kiểm tra xem học sinh đã ở trong lớp chưa
             var isAlreadyJoined = await _context.ClassMembers
                 .AnyAsync(m => m.ClassId == targetClass.ClassId && m.StudentId == studentId);
             if (isAlreadyJoined) return false;
 
-            // Thêm học sinh vào lớp
             var member = new ClassMember
             {
                 ClassId = targetClass.ClassId,

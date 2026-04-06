@@ -35,6 +35,7 @@ namespace OmniSight.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<ClassMember>().HasKey(cm => new { cm.ClassId, cm.StudentId });
 
             // 1. Sửa lỗi cho Streams (Bảng tin) - MỚI BỔ SUNG
             modelBuilder.Entity<StreamEntity>()

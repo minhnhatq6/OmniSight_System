@@ -2,7 +2,6 @@ using System;
 using System.Windows.Forms;
 using MaterialSkin.Controls;
 using OmniSight.Services;
-using OmniSight.Data; // Để gọi DbContext nếu không dùng DI
 
 namespace OmniSight.UI.Forms
 {
@@ -11,7 +10,6 @@ namespace OmniSight.UI.Forms
         private readonly ClassService _classService;
         private readonly int _currentTeacherId;
 
-        // Constructor yêu cầu truyền vào Service và ID của giáo viên đang đăng nhập
         public FrmCreateClass(ClassService classService, int teacherId)
         {
             InitializeComponent();
@@ -19,35 +17,91 @@ namespace OmniSight.UI.Forms
             _currentTeacherId = teacherId;
         }
 
+        private async void FrmCreateClass_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                var subjects = await _classService.GetSubjectsAsync();
+
+                if (subjects != null && subjects.Count > 0)
+                {
+                    cmbSubjects.DisplayMember = "SubjectName";
+                    cmbSubjects.ValueMember = "SubjectId";
+                    cmbSubjects.DataSource = subjects;
+                    cmbSubjects.SelectedIndex = 0;
+
+                    switchNewSubject.Checked = false; // Tắt mặc định
+                }
+                else
+                {
+                    // Nếu chưa có môn nào trong DB -> Ép người dùng tạo mới
+                    switchNewSubject.Checked = true;
+                    switchNewSubject.Enabled = false; // Khóa công tắc luôn
+                    cmbSubjects.Enabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi tải danh sách môn học: " + ex.Message);
+            }
+        }
+
+        // Sự kiện khi bật/tắt công tắc Tạo môn mới
+        private void switchNewSubject_CheckedChanged(object sender, EventArgs e)
+        {
+            // Nếu bật tạo mới -> Mở TextBox, khóa ComboBox
+            txtNewSubject.Enabled = switchNewSubject.Checked;
+            cmbSubjects.Enabled = !switchNewSubject.Checked;
+
+            if (switchNewSubject.Checked) txtNewSubject.Focus();
+        }
+
         private async void btnCreate_Click(object sender, EventArgs e)
         {
             string className = txtClassName.Text.Trim();
 
-            // 1. Kiểm tra tên lớp
             if (string.IsNullOrEmpty(className))
             {
                 MessageBox.Show("Vui lòng nhập tên lớp học!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // 2. Kiểm tra môn học (SelectedValue không được null)
-            if (cmbSubjects.SelectedValue == null)
-            {
-                MessageBox.Show("Vui lòng chọn môn học cho lớp!\n(Nếu danh sách trống, vui lòng thêm môn học vào Database trước)", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int subjectId = (int)cmbSubjects.SelectedValue;
+            int finalSubjectId = 0;
 
             try
             {
-                // Gọi xuống Service để lưu vào Database
-                var newClass = await _classService.CreateClassAsync(className, _currentTeacherId, subjectId);
+                // PHÂN NHÁNH LOGIC TÌM ID MÔN HỌC
+                if (switchNewSubject.Checked)
+                {
+                    // 1. Nếu đang tạo môn mới
+                    string newSubName = txtNewSubject.Text.Trim();
+                    if (string.IsNullOrEmpty(newSubName))
+                    {
+                        MessageBox.Show("Vui lòng nhập tên môn học mới!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
 
-                MessageBox.Show($"Tạo lớp thành công!\nMã tham gia (Join Code) của lớp là: {newClass.JoinCode}",
+                    // Gọi hàm sinh ra/tìm môn học rồi lấy ID
+                    var subject = await _classService.GetOrCreateSubjectAsync(newSubName);
+                    finalSubjectId = subject.SubjectId;
+                }
+                else
+                {
+                    // 2. Nếu chọn từ danh sách có sẵn
+                    if (cmbSubjects.SelectedValue == null)
+                    {
+                        MessageBox.Show("Vui lòng chọn một môn học!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    finalSubjectId = (int)cmbSubjects.SelectedValue;
+                }
+
+                // TIẾN HÀNH TẠO LỚP
+                var newClass = await _classService.CreateClassAsync(className, _currentTeacherId, finalSubjectId);
+
+                MessageBox.Show($"Tạo lớp thành công!\nMã tham gia (Join Code): {newClass.JoinCode}",
                                 "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Đóng form và báo hiệu thành công về cho Form chính
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }
@@ -55,15 +109,6 @@ namespace OmniSight.UI.Forms
             {
                 MessageBox.Show("Lỗi khi tạo lớp: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private async void FrmCreateClass_Load(object sender, EventArgs e)
-        {
-
-            var subjects = await _classService.GetSubjectsAsync(); // Giả sử bạn đã viết hàm này trong ClassService để lấy danh sách môn học từ database
-            cmbSubjects.DataSource = subjects;
-            cmbSubjects.DisplayMember = "SubjectName"; // Hiển thị tên môn
-            cmbSubjects.ValueMember = "SubjectId";     // Giá trị ẩn là ID
         }
     }
 }

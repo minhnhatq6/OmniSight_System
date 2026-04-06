@@ -8,6 +8,7 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace OmniSight.UI.Forms
@@ -19,8 +20,10 @@ namespace OmniSight.UI.Forms
         private readonly IUserService _userService;
         private readonly IServiceProvider _serviceProvider;
         private bool _isLoggingOut = false;
-
-        // Lưu ý: KHÔNG khai báo timerCamera ở đây nữa vì nó đã có trong Designer
+        private float _currentZoom = 1.0f;
+        private const float MIN_ZOOM = 0.7f;
+        private const float MAX_ZOOM = 2.0f;
+        private const float ZOOM_STEP = 0.1f;
 
         public MainForm(AuthService authService, IUserService userService, IServiceProvider serviceProvider, FaceAiService faceAiService)
         {
@@ -29,9 +32,8 @@ namespace OmniSight.UI.Forms
             _userService = userService;
             _serviceProvider = serviceProvider;
             _faceAiService = faceAiService;
-            LoadClassList(); // Load danh sách lớp học ngay khi mở form
+            LoadClassList();
 
-            // Cấu hình Theme Material
             var materialSkinManager = MaterialSkinManager.Instance;
             materialSkinManager.AddFormToManage(this);
             materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
@@ -45,6 +47,8 @@ namespace OmniSight.UI.Forms
         private void MainForm_Load(object sender, EventArgs e)
         {
             this.DrawerTabControl = this.materialTabControl1;
+            this.KeyPreview = true;
+            this.KeyDown += MainForm_KeyDown;
 
             var user = _authService.CurrentUser;
             if (user != null)
@@ -52,7 +56,6 @@ namespace OmniSight.UI.Forms
                 lblHomeWelcome.Text = $"Chào mừng {user.FullName} đến với OmniSight!";
                 btnUserAccount.Text = user.FullName.ToUpper();
                 txtFullName.Text = user.FullName ?? "";
-                // txtPhone, switchStudent... (Các control này phải khớp với Designer)
             }
 
             try
@@ -91,7 +94,6 @@ namespace OmniSight.UI.Forms
             var user = _authService.CurrentUser;
             if (user == null) return;
 
-            // Giả sử IUserService có phương thức này
             bool success = await _userService.UpdateProfileAsync(user.UserId, txtFullName.Text, txtPhone.Text, switchStudent.Checked, switchTeacher.Checked);
 
             if (success)
@@ -106,7 +108,7 @@ namespace OmniSight.UI.Forms
         {
             if (_faceAiService.StartCamera(0))
             {
-                timerCamera.Start(); // Timer này lấy từ Designer
+                timerCamera.Start();
                 btnStartCamera.Enabled = false;
             }
             else MessageBox.Show("Không thể mở Camera!");
@@ -119,7 +121,6 @@ namespace OmniSight.UI.Forms
                 if (frame != null && !frame.IsEmpty)
                 {
                     var oldImage = picCamera.Image;
-                    // Fix lỗi ToBitmap(): Cần cài NuGet Emgu.CV.Bitmap
                     picCamera.Image = frame.ToBitmap();
                     oldImage?.Dispose();
                 }
@@ -162,24 +163,14 @@ namespace OmniSight.UI.Forms
 
         private void btnOpenCreateClass_Click(object sender, EventArgs e)
         {
-
-            // 1. Lấy ClassService ra từ Dependency Injection (bạn đã có sẵn _serviceProvider trong MainForm)
             var classService = _serviceProvider.GetRequiredService<ClassService>();
+            int currentTeacherId = _authService.CurrentUser?.UserId ?? 0;
 
-            // 2. Lấy ID của người dùng đang đăng nhập
-            // (Lưu ý: Bạn hãy thay _currentUser.UserId bằng biến lưu User ID thực tế trong MainForm của bạn nhé)
-            int currentTeacherId = _authService.CurrentUser?.UserId ?? 0; // Giả sử UserId là int, nếu không có user nào đăng nhập thì mặc định là 0    
-
-            // 3. Khởi tạo và mở Form Tạo Lớp
             using (var frmCreate = new FrmCreateClass(classService, currentTeacherId))
             {
-                // ShowDialog() sẽ mở form lên và bắt người dùng phải thao tác xong mới được quay lại MainForm
                 var result = frmCreate.ShowDialog();
-
-                // 4. Kiểm tra xem người dùng đã bấm "Tạo lớp" thành công hay bấm nút "X" tắt đi
                 if (result == DialogResult.OK)
                 {
-                    // Nếu tạo thành công, gọi hàm load lại danh sách lớp học để hiển thị lên màn hình
                     LoadClassList();
                 }
             }
@@ -194,25 +185,24 @@ namespace OmniSight.UI.Forms
 
             var _classService = _serviceProvider.GetRequiredService<ClassService>();
 
-            // Giả sử bạn có biến check role (Dựa trên switchTeacher/switchStudent trong Profile)
             if (_currentUser.IsTeacher)
             {
                 var classes = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
                 foreach (var c in classes)
                 {
                     var item = new ListViewItem(c.ClassName);
-                    item.SubItems.Add(c.JoinCode); // Giáo viên thì hiện Join Code
+                    item.SubItems.Add(c.JoinCode);
                     item.Tag = c.ClassId;
                     lvwClasses.Items.Add(item);
                 }
             }
-            else // Chế độ Sinh viên
+            else
             {
                 var classes = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
                 foreach (var c in classes)
                 {
                     var item = new ListViewItem(c.ClassName);
-                    item.SubItems.Add("******"); // Sinh viên thì giấu Join Code đi
+                    item.SubItems.Add("******");
                     item.Tag = c.ClassId;
                     lvwClasses.Items.Add(item);
                 }
@@ -228,31 +218,145 @@ namespace OmniSight.UI.Forms
             {
                 if (frmJoin.ShowDialog() == DialogResult.OK)
                 {
-                    LoadClassList(); // Load lại danh sách lớp để thấy lớp vừa tham gia
+                    LoadClassList();
                 }
             }
         }
 
+        // --- ĐÃ SỬA: SỰ KIỆN DOUBLE CLICK VÀO LỚP HỌC ---
         private void lvwClasses_MouseDoubleClick(object sender, EventArgs e)
         {
-            var _currentUser = _authService.CurrentUser; // Lấy thông tin người dùng hiện tại (nếu chưa có sẵn trong biến toàn cục)
-            // 1. Kiểm tra xem người dùng có thực sự đang chọn 1 dòng nào không
+            var _currentUser = _authService.CurrentUser;
             if (lvwClasses.SelectedItems.Count == 0) return;
 
-            // 2. Lấy dữ liệu từ dòng đang được chọn
             var selectedItem = lvwClasses.SelectedItems[0];
-            string className = selectedItem.Text;       // Lấy tên lớp
-            int classId = (int)(selectedItem.Tag ?? 0);        // Lấy cái ID lớp học đã giấu lúc nãy
+            string className = selectedItem.Text;
+            int classId = (int)(selectedItem.Tag ?? 0);
 
-            // 3. Lấy Service và ID người dùng hiện tại
             var streamService = _serviceProvider.GetRequiredService<StreamService>();
             var classService = _serviceProvider.GetRequiredService<ClassService>();
+            var assignmentService = _serviceProvider.GetRequiredService<AssignmentService>();
             int currentUserId = _currentUser?.UserId ?? 0;
 
-            // 4. Mở Form Chi tiết Lớp học
-            using (var frmDetail = new FrmClassDetail(streamService, classService, currentUserId, classId, className))
+            // Gọi hàm sinh ra Tab mới thay vì Form mới
+            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, currentUserId);
+        }
+
+        // --- HÀM MỚI: TẠO TAB CHI TIẾT LỚP HỌC (SPA STYLE) ---
+        private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, int currentUserId)
+        {
+            string tabName = "tabClass_" + classId;
+            TabPage tabDetail = materialTabControl1.TabPages[tabName];
+
+            if (tabDetail == null)
             {
-                frmDetail.ShowDialog(); // Mở form lên
+                // 1. Tạo TabPage mới
+                tabDetail = new TabPage();
+                tabDetail.Name = tabName;
+                tabDetail.Text = "Lớp: " + className;
+                tabDetail.BackColor = Color.White; // BẮT BUỘC: Phải có dòng này để tránh bị xanh/đen nền
+
+                // 2. Tạo UserControl
+                var ucDetail = new UcClassDetail(streamService, classService, _authService, currentUserId, classId);
+                ucDetail.SetAssignmentService(assignmentService); // Gán AssignmentService
+                ucDetail.Dock = DockStyle.Fill; // Lấp đầy TabPage
+
+                // 3. Add vào
+                tabDetail.Controls.Add(ucDetail);
+                materialTabControl1.TabPages.Add(tabDetail);
+            }
+
+            materialTabControl1.SelectedTab = tabDetail;
+        }
+
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl + Scroll wheel simulation with + and - keys
+            if (e.Control)
+            {
+                if (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add)
+                {
+                    ZoomIn();
+                    e.Handled = true;
+                }
+                else if (e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract)
+                {
+                    ZoomOut();
+                    e.Handled = true;
+                }
+                else if (e.KeyCode == Keys.D0)
+                {
+                    ResetZoom();
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void ZoomIn()
+        {
+            if (_currentZoom < MAX_ZOOM)
+            {
+                _currentZoom = Math.Min(_currentZoom + ZOOM_STEP, MAX_ZOOM);
+                ApplyZoom();
+            }
+        }
+
+        private void ZoomOut()
+        {
+            if (_currentZoom > MIN_ZOOM)
+            {
+                _currentZoom = Math.Max(_currentZoom - ZOOM_STEP, MIN_ZOOM);
+                ApplyZoom();
+            }
+        }
+
+        private void ResetZoom()
+        {
+            _currentZoom = 1.0f;
+            ApplyZoom();
+        }
+
+        private void ApplyZoom()
+        {
+            // Áp dụng zoom cho tất cả các tab
+            foreach (TabPage tab in materialTabControl1.TabPages)
+            {
+                foreach (Control ctrl in tab.Controls)
+                {
+                    if (ctrl is UcClassDetail ucDetail)
+                    {
+                        // Phóng to/thu nhỏ font và size của các control
+                        ScaleControl(ucDetail, _currentZoom);
+                    }
+                }
+            }
+
+            // Phóng to/thu nhỏ form chính
+            this.Font = new Font(this.Font.FontFamily, 8 * _currentZoom, this.Font.Style);
+
+            // Update title bar to show zoom level
+            this.Text = $"OmniSight Dashboard ({(int)(_currentZoom * 100)}%)";
+        }
+
+        private void ScaleControl(Control control, float zoomLevel)
+        {
+            if (control == null) return;
+
+            try
+            {
+                // Scale font
+                float newFontSize = 8 * zoomLevel;
+                control.Font = new Font(control.Font?.FontFamily ?? new FontFamily("Roboto"), newFontSize, control.Font?.Style ?? FontStyle.Regular);
+
+                // Scale child controls
+                foreach (Control child in control.Controls)
+                {
+                    ScaleControl(child, zoomLevel);
+                }
+            }
+            catch
+            {
+                // Ignore errors for controls that don't support scaling
             }
         }
     }

@@ -4,12 +4,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OmniSight.Core.Entities
 {
-    [PrimaryKey(nameof(ClassId), nameof(StudentId))]
+    // Dùng Data Annotation này là đủ để xác định khóa chính kép[PrimaryKey(nameof(ClassId), nameof(StudentId))]
     public class ClassMember
-    {   
-        [Key]
+    {
         public int ClassId { get; set; }
-        [Key]
         public int StudentId { get; set; }
 
         public DateTime JoinedAt { get; set; }
@@ -17,7 +15,5 @@ namespace OmniSight.Core.Entities
         // Navigation properties
         public virtual Class Class { get; set; }
         public virtual User Student { get; set; }
-
     }
-
 }
