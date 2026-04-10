@@ -654,10 +654,10 @@ namespace OmniSight.UI.Forms
             };
 
             Label lblScore = new Label() { Left = 20, Top = 20, Text = "Điểm (0-10):", Width = 200 };
-            NumericUpDown nudScore = new NumericUpDown() 
-            { 
-                Left = 150, 
-                Top = 20, 
+            NumericUpDown nudScore = new NumericUpDown()
+            {
+                Left = 150,
+                Top = 20,
                 Width = 100,
                 Maximum = 10,
                 Minimum = 0,
@@ -666,30 +666,30 @@ namespace OmniSight.UI.Forms
             };
 
             Label lblFeedback = new Label() { Left = 20, Top = 70, Text = "Phản hồi (tùy chọn):", Width = 200 };
-            TextBox txtFeedback = new TextBox() 
-            { 
-                Left = 20, 
-                Top = 100, 
+            TextBox txtFeedback = new TextBox()
+            {
+                Left = 20,
+                Top = 100,
                 Width = 400,
                 Height = 80,
                 Multiline = true
             };
 
-            Button okButton = new Button() 
-            { 
-                Text = "Lưu", 
-                Left = 200, 
-                Width = 80, 
-                Top = 200, 
-                DialogResult = DialogResult.OK 
+            Button okButton = new Button()
+            {
+                Text = "Lưu",
+                Left = 200,
+                Width = 80,
+                Top = 200,
+                DialogResult = DialogResult.OK
             };
-            Button cancelButton = new Button() 
-            { 
-                Text = "Hủy", 
-                Left = 290, 
-                Width = 80, 
-                Top = 200, 
-                DialogResult = DialogResult.Cancel 
+            Button cancelButton = new Button()
+            {
+                Text = "Hủy",
+                Left = 290,
+                Width = 80,
+                Top = 200,
+                DialogResult = DialogResult.Cancel
             };
 
             gradeForm.Controls.Add(lblScore);
@@ -1064,6 +1064,11 @@ namespace OmniSight.UI.Forms
         }
 
         private void materialTabSelector1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void dtpDueDate_ValueChanged(object sender, EventArgs e)
         {
 
         }
