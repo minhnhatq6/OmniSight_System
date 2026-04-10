@@ -7,103 +7,140 @@ using System.Windows.Forms;
 using MaterialSkin.Controls;
 using OmniSight.Services;
 using OmniSight.Core.Entities;
-using Microsoft.Extensions.DependencyInjection;
+
 namespace OmniSight.UI.Forms
 {
+    /// <summary>
+    /// Deprecated: Use FrmExamManagement instead
+    /// This form is kept as a redirect for backward compatibility
+    /// It automatically opens the new FrmExamManagement form
+    /// </summary>
     public class FrmExamManager : Form
     {
         private readonly ExamService _examService;
         private readonly ClassService _classService;
+        private readonly AuthService _authService;
+        private readonly int _teacherId;
 
-        private MaterialListView lvwExams;
-        private MaterialComboBox cbClasses;
-        private MaterialTextBox txtTitle;
-        private NumericUpDown nudDuration;
-        private MaterialButton btnCreate;
+        private MaterialLabel lblInfo;
+        private MaterialButton btnOpen;
 
-        public FrmExamManager(ExamService examService, ClassService classService)
+        public FrmExamManager(ExamService examService, ClassService classService, AuthService authService, int teacherId)
         {
             _examService = examService;
             _classService = classService;
+            _authService = authService;
+            _teacherId = teacherId;
             InitializeComponent();
-            LoadClassesAsync();
-        }
-
-        private async void LoadClassesAsync()
-        {
-            var classes = await _classService.GetOwnedClassesAsync(Program.ServiceProvider.GetService<AuthService>().CurrentUser.UserId);
-            cbClasses.Items.Clear();
-            foreach (var c in classes)
-            {
-                cbClasses.Items.Add(new ListViewItemWithId { Id = c.ClassId, Text = c.ClassName });
-            }
-            if (cbClasses.Items.Count > 0) cbClasses.SelectedIndex = 0;
         }
 
         private void InitializeComponent()
         {
-            this.Text = "Quản lý đề thi";
-            this.Width = 700;
-            this.Height = 500;
+            this.Text = "Quản Lý Đề Thi - Chuyển Hướng";
+            this.Width = 500;
+            this.Height = 250;
             this.StartPosition = FormStartPosition.CenterParent;
+            this.BackColor = Color.White;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
 
-            cbClasses = new MaterialComboBox { Left = 20, Top = 20, Width = 400 };
-            txtTitle = new MaterialTextBox { Left = 20, Top = 70, Width = 400, Hint = "Tiêu đề đề thi" };
-            nudDuration = new NumericUpDown { Left = 440, Top = 70, Width = 80, Minimum = 10, Maximum = 300, Value = 60 };
-            btnCreate = new MaterialButton { Left = 540, Top = 70, Text = "Tạo đề" };
-            btnCreate.Click += BtnCreate_Click;
+            // Panel
+            var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20), AutoScroll = true };
 
-            lvwExams = new MaterialListView { Left = 20, Top = 120, Width = 640, Height = 300, View = View.Details };
-            lvwExams.Columns.Add("Tiêu đề", 400);
-            lvwExams.Columns.Add("Thời lượng (phút)", 120);
-            lvwExams.Columns.Add("Lớp", 120);
+            // Header
+            var lblHeader = new MaterialLabel
+            {
+                Text = "🔄 Chuyển Hướng Giao Diện",
+                Font = new Font("Roboto", 14, FontStyle.Bold),
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 10)
+            };
 
-            this.Controls.Add(cbClasses);
-            this.Controls.Add(txtTitle);
-            this.Controls.Add(nudDuration);
-            this.Controls.Add(btnCreate);
-            this.Controls.Add(lvwExams);
+            // Info label
+            lblInfo = new MaterialLabel
+            {
+                Text = "Giao diện quản lý bài thi đã được cập nhật.\n\nVui lòng nhấp nút dưới để mở giao diện mới với đầy đủ tính năng:\n• Danh sách bài thi\n• Quản lý câu hỏi\n• Xem kết quả học sinh",
+                AutoSize = true,
+                MaximumSize = new Size(400, 0),
+                Margin = new Padding(0, 10, 0, 20),
+                ForeColor = Color.Gray
+            };
+
+            // Redirect button
+            btnOpen = new MaterialButton
+            {
+                Text = "📂 Mở Giao Diện Quản Lý Bài Thi",
+                Width = 200,
+                Height = 40,
+                Margin = new Padding(0, 0, 10, 0),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            };
+            btnOpen.Click += async (s, e) => await OpenExamManagement();
+
+            // Cancel button
+            var btnCancel = new MaterialButton
+            {
+                Text = "❌ Đóng",
+                Width = 100,
+                Height = 40,
+                Margin = new Padding(10, 0, 0, 0),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            };
+            btnCancel.Click += (s, e) => this.Close();
+
+            // Button panel
+            var btnPanel = new Panel
+            {
+                Height = 50,
+                Dock = DockStyle.Bottom,
+                Padding = new Padding(10)
+            };
+            btnPanel.Controls.Add(btnOpen);
+            btnPanel.Controls.Add(btnCancel);
+
+            panel.Controls.Add(lblHeader);
+            panel.Controls.Add(lblInfo);
+
+            this.Controls.Add(btnPanel);
+            this.Controls.Add(panel);
+
+            this.Load += (s, e) => AutoOpenNewForm();
         }
 
-        private async void BtnCreate_Click(object sender, EventArgs e)
+        private async void AutoOpenNewForm()
         {
-            if (cbClasses.SelectedItem == null) return;
-            var selected = cbClasses.SelectedItem as ListViewItemWithId;
-            if (selected == null) return;
+            // Auto-open the new form after short delay
+            await Task.Delay(1000);
+            OpenExamManagement();
+        }
 
-            string title = txtTitle.Text.Trim();
-            int duration = (int)nudDuration.Value;
-            if (string.IsNullOrEmpty(title)) { MessageBox.Show("Vui lòng nhập tiêu đề đề thi."); return; }
-
+        private async Task OpenExamManagement()
+        {
             try
             {
-                var exam = await _examService.CreateExamAsync(selected.Id, title, duration);
-                MessageBox.Show("Tạo đề thi thành công.");
-                await RefreshExamsAsync(selected.Id);
+                // Open the new comprehensive exam management form
+                using (var frm = new FrmExamManagement(_examService, _classService, _teacherId))
+                {
+                    frm.ShowDialog(this);
+                }
+                this.Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi tạo đề thi: " + ex.Message);
+                MessageBox.Show("Lỗi mở giao diện quản lý bài thi:\n\n" + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+    }
 
-        private async Task RefreshExamsAsync(int classId)
-        {
-            lvwExams.Items.Clear();
-            var exams = await _examService.GetExamsByClassIdAsync(classId);
-            foreach (var ex in exams)
-            {
-                var item = new ListViewItem(new[] { ex.Title, ex.DurationMinutes.ToString(), ex.Class?.ClassName ?? "" });
-                item.Tag = ex.ExamId;
-                lvwExams.Items.Add(item);
-            }
-        }
+    /// <summary>
+    /// Helper class for storing ID in ListViewItem
+    /// </summary>
+    public class ListViewItemWithId
+    {
+        public int Id { get; set; }
+        public string Text { get; set; }
 
-        private class ListViewItemWithId : ListViewItem
-        {
-            public int Id { get; set; }
-            public ListViewItemWithId() : base() { }
-            public override string ToString() => Text;
-        }
+        public override string ToString() => Text;
     }
 }
