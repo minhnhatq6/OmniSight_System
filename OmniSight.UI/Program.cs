@@ -8,7 +8,11 @@ using OmniSight.Data;
 using OmniSight.Services;
 using OmniSight.UI.Forms;
 using OmniSight.UI.Forms.Auth;
-using System.Web; // Lưu ý: Nếu báo lỗi ở đây, hãy xem hướng dẫn phía dưới
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Web;
+using System.Windows.Forms;
 
 namespace OmniSight.UI
 {
@@ -16,15 +20,15 @@ namespace OmniSight.UI
     {
         public static IServiceProvider? ServiceProvider { get; private set; }
 
+        // BẮT BUỘC LÀ "void Main" ĐỂ APP KHÔNG BỊ ĐỨNG KHI MỞ HỘP THOẠI CHỌN FILE
         [STAThread]
-        static async Task Main(string[] args) // Đã thêm string[] args
+        static void Main(string[] args)
         {
-            // 1. Đăng ký Protocol với Windows (để nhận link omnisight://)
+            // 1. Đăng ký Protocol với Windows
             RegisterCustomProtocol();
-
             ApplicationConfiguration.Initialize();
 
-            // 2. Khởi tạo Host và Services
+            // 2. Khởi tạo Host và Services (Giữ nguyên toàn bộ cấu hình của bạn)
             var host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, builder) =>
                 {
@@ -41,15 +45,17 @@ namespace OmniSight.UI
                     services.AddScoped<ClassService>();
                     services.AddScoped<StreamService>();
                     services.AddScoped<AssignmentService>();
-                    // THÊM DÒNG NÀY ĐỂ FIX LỖI CRASH:
-                    services.AddScoped<FaceAiService>();
+                    services.AddScoped<ExamService>();
+
+                    // Face AI Service (Khuyên dùng Singleton để camera không bị đụng độ giữa các form)
+                    services.AddSingleton<FaceAiService>();
+
                     // Đăng ký các Form
                     services.AddTransient<FrmLogin>();
                     services.AddTransient<MainForm>();
                     services.AddTransient<FrmRegister>();
                     services.AddTransient<FrmSetPassword>();
-                    // Trong Program.cs -> ConfigureServices
-                    services.AddTransient<FrmFaceLogin>();
+                    services.AddTransient<FrmFaceLogin>(); // <-- Dòng này giúp Face Login của bạn hoạt động
                 })
                 .Build();
 
@@ -74,14 +80,14 @@ namespace OmniSight.UI
 
             var authService = ServiceProvider.GetRequiredService<AuthService>();
 
-            // 3. XỬ LÝ NẾU MỞ TỪ LINK (DEEP LINKING)
+            // 3. XỬ LÝ NẾU MỞ TỪ LINK (DEEP LINKING) - Chạy đồng bộ để giữ luồng UI
             if (args.Length > 0 && args[0].StartsWith("omnisight://"))
             {
-                await HandleDeepLink(args[0], authService);
+                HandleDeepLink(args[0], authService).GetAwaiter().GetResult();
             }
 
-            // 4. LOGIC KHỞI ĐỘNG BÌNH THƯỜNG
-            bool isLoggedIn = await authService.TryAutoLoginAsync();
+            // 4. LOGIC KHỞI ĐỘNG BÌNH THƯỜNG - Chạy đồng bộ để giữ luồng UI
+            bool isLoggedIn = authService.TryAutoLoginAsync().GetAwaiter().GetResult();
 
             if (isLoggedIn)
             {
@@ -98,13 +104,12 @@ namespace OmniSight.UI
         {
             try
             {
-                // Link: omnisight://verify-email?token=abc&email=test@gmail.com
                 var uri = new Uri(url.Replace("omnisight://", "http://"));
                 var query = HttpUtility.ParseQueryString(uri.Query);
 
                 string? token = query["token"];
                 string? email = query["email"];
-                string path = uri.Host; // Host ở đây chính là "verify-email"
+                string path = uri.Host;
 
                 if (path == "verify-email" && !string.IsNullOrEmpty(token))
                 {

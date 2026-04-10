@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using MaterialSkin.Controls;
+using Xceed.Words.NET;
 using OmniSight.Services;
 
 namespace OmniSight.UI.Forms
@@ -15,6 +16,7 @@ namespace OmniSight.UI.Forms
         private readonly ClassService _classService;
         private readonly AuthService _authService;
         private AssignmentService _assignmentService;
+        private ExamService _examService;
         private readonly int _classId;
         private readonly int _currentUserId;
 
@@ -44,10 +46,16 @@ namespace OmniSight.UI.Forms
             _assignmentService = assignmentService;
         }
 
+        public void SetExamService(ExamService examService)
+        {
+            _examService = examService;
+        }
+
         private bool _streamLoaded = false;
         private bool _assignmentLoaded = false;
         private bool _gradingLoaded = false;
         private bool _membersLoaded = false;
+        private bool _examsLoaded = false;
 
         private async void UcClassDetail_VisibleChanged(object sender, EventArgs e)
         {
@@ -58,8 +66,111 @@ namespace OmniSight.UI.Forms
                 await LoadStreamAsync();
                 await LoadAssignmentsAsync();
                 await LoadGradingAsync();
+                await LoadExamsAsync();
                 await LoadMembersAsync();
             }
+        }
+
+        private async Task LoadExamsAsync()
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new MethodInvoker(async () => await LoadExamsAsync()));
+                return;
+            }
+
+            if (_examService == null || flpExams == null) return;
+
+            try
+            {
+                flpExams.Controls.Clear();
+
+                var user = _authService.CurrentUser;
+                if (user == null) return;
+
+                flpExams.Controls.Add(new Label { Text = "\uD83D\uDCD6 Đề thi", Font = new Font("Roboto", 14, FontStyle.Bold), AutoSize = true, Padding = new Padding(10), Margin = new Padding(5,5,5,15) });
+
+                List<OmniSight.Core.Entities.Exam> exams;
+                if (user.IsTeacher)
+                {
+                    exams = await _examService.GetExamsForTeacherAsync(user.UserId);
+                }
+                else
+                {
+                    exams = await _examService.GetExamsForStudentAsync(user.UserId);
+                }
+
+                if (exams == null || exams.Count == 0)
+                {
+                    flpExams.Controls.Add(new Label { Text = "Chưa có đề thi.", AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(10) });
+                    flpExams.PerformLayout();
+                    return;
+                }
+
+                foreach (var exam in exams)
+                {
+                    var card = CreateExamCard(exam, user.IsTeacher);
+                    flpExams.Controls.Add(card);
+                }
+
+                flpExams.PerformLayout();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi tải đề thi: " + ex.Message);
+            }
+        }
+
+        private Panel CreateExamCard(OmniSight.Core.Entities.Exam exam, bool isTeacher)
+        {
+            Panel card = new Panel
+            {
+                Width = flpExams.Width - 30,
+                AutoSize = false,
+                Padding = new Padding(15),
+                Margin = new Padding(5,5,5,15),
+                BackColor = Color.FromArgb(245,245,245),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            Label lblTitle = new Label { Text = $"📚 {exam.Title}", Font = new Font("Roboto", 12, FontStyle.Bold), AutoSize = false, Location = new Point(10,10) };
+            card.Controls.Add(lblTitle);
+            int currentY = lblTitle.Bottom + 10;
+
+            Label lblInfo = new Label { Text = $"Thời lượng: {exam.DurationMinutes} phút | Tạo: {exam.CreatedAt:dd/MM/yyyy}", Font = new Font("Roboto",9), ForeColor = Color.Gray, AutoSize = true, Location = new Point(10, currentY) };
+            card.Controls.Add(lblInfo);
+            currentY = lblInfo.Bottom + 10;
+
+            if (isTeacher)
+            {
+                Button btnManage = new Button { Text = "🔧 Quản lý", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(33,150,243), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+                btnManage.Click += (s,e) => MessageBox.Show("Tính năng quản lý đề thi chưa được triển khai.");
+                card.Controls.Add(btnManage);
+            }
+            else
+            {
+                Button btnTake = new Button { Text = "🚀 Làm thi", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(76,175,80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+                btnTake.Click += async (s,e) =>
+                {
+                    try
+                    {
+                        var result = await _examService.StartExamAsync(exam.ExamId, _currentUserId);
+                        // Open new window for exam taking (placeholder)
+                        using (var frm = new FrmTakeExam(exam, result, _examService))
+                        {
+                            frm.ShowDialog();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Lỗi khi bắt đầu làm bài: " + ex.Message);
+                    }
+                };
+                card.Controls.Add(btnTake);
+            }
+
+            card.Height = currentY + 10;
+            return card;
         }
 
         private async Task LoadStreamAsync()
@@ -155,6 +266,8 @@ namespace OmniSight.UI.Forms
                 var assignments = await _assignmentService.GetAssignmentsByClassIdAsync(_classId);
 
                 flpAssignments.Controls.Clear();
+                flpGrading.FlowDirection = FlowDirection.TopDown; // Xếp từ trên xuống
+                flpGrading.WrapContents = false; // Không cho phép tràn sang hàng ngang
 
                 if (assignments == null || assignments.Count == 0)
                 {
@@ -227,6 +340,8 @@ namespace OmniSight.UI.Forms
                 var assignments = await _assignmentService.GetAssignmentsByClassIdAsync(_classId);
 
                 flpGrading.Controls.Clear();
+                flpGrading.FlowDirection = FlowDirection.TopDown; // Xếp từ trên xuống
+                flpGrading.WrapContents = false; // Không cho phép tràn sang hàng ngang
 
                 if (user.IsTeacher)
                 {
@@ -299,15 +414,22 @@ namespace OmniSight.UI.Forms
 
         private Panel CreateGradingCard(OmniSight.Core.Entities.Assignment assignment)
         {
+            // Lấy chiều rộng của UserControl, nếu quá nhỏ thì lấy mặc định 800
+            int cardWidth = this.Width > 100 ? this.Width - 50 : 780;
+
             Panel card = new Panel
             {
-                Width = flpGrading.Width - 30,
-                AutoSize = true,
+                Width = cardWidth,
+                Height = 150, // Cho một chiều cao mặc định
+                AutoSize = true, // Để true nhưng phải kết hợp với FlowLayoutPanel đúng
                 Padding = new Padding(15),
-                Margin = new Padding(5, 5, 5, 15),
+                Margin = new Padding(10, 10, 10, 15),
                 BackColor = Color.FromArgb(240, 248, 255),
                 BorderStyle = BorderStyle.FixedSingle
             };
+
+            // Đảm bảo card không bao giờ nhỏ hơn cardWidth
+            card.MinimumSize = new Size(cardWidth, 50);
 
             // Tiêu đề bài tập
             Label lblTitle = new Label
@@ -436,7 +558,7 @@ namespace OmniSight.UI.Forms
             Panel card = new Panel
             {
                 Width = flpGrading.Width - 30,
-                AutoSize = true,
+                AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
                 BackColor = Color.FromArgb(245, 245, 245),
@@ -725,8 +847,8 @@ namespace OmniSight.UI.Forms
         {
             Panel card = new Panel
             {
-                Width = flpAssignments.Width - 30,
-                AutoSize = true,
+                Width = flpAssignments.Width - 60,
+                AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
                 BackColor = Color.FromArgb(245, 245, 245),
@@ -1014,7 +1136,7 @@ namespace OmniSight.UI.Forms
             Panel card = new Panel
             {
                 Width = flpMembers.Width - 30,
-                AutoSize = true,
+                AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
                 BackColor = Color.FromArgb(245, 245, 245),
@@ -1063,14 +1185,134 @@ namespace OmniSight.UI.Forms
             return card;
         }
 
-        private void materialTabSelector1_Click(object sender, EventArgs e)
+        // --- SỰ KIỆN 1: TẢI FILE MẪU ---
+        private void btnDownloadTemplate_Click(object sender, EventArgs e)
         {
+            // Dùng using để giải phóng RAM ngay khi tắt hộp thoại
+            using (SaveFileDialog sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "Word Document|*.docx";
+                sfd.FileName = "Mau_De_Thi_OmniSight.docx";
+                sfd.Title = "Chọn nơi lưu file mẫu";
 
+                // QUAN TRỌNG: Truyền this.ParentForm vào để tránh bị treo (Not Responding)
+                if (sfd.ShowDialog(this.ParentForm) == DialogResult.OK)
+                {
+                    try
+                    {
+                        using (var doc = DocX.Create(sfd.FileName))
+                        {
+                            doc.InsertParagraph("MẪU ĐỀ THI OMNISIGHT").Bold().FontSize(16d).Alignment = Xceed.Document.NET.Alignment.center;
+                            doc.InsertParagraph("\n(Lưu ý: Không đổi định dạng các chữ 'Câu x:', 'A.', 'B.', 'C.', 'D.', 'Đáp án:')\n").Italic();
+
+                            doc.InsertParagraph("Câu 1: Thủ đô của Việt Nam là gì?");
+                            doc.InsertParagraph("A. Đà Nẵng");
+                            doc.InsertParagraph("B. Hà Nội");
+                            doc.InsertParagraph("C. Hồ Chí Minh");
+                            doc.InsertParagraph("D. Cần Thơ");
+                            doc.InsertParagraph("Đáp án: B\n");
+
+                            doc.InsertParagraph("Câu 2: Trái đất có hình gì?");
+                            doc.InsertParagraph("A. Hình vuông");
+                            doc.InsertParagraph("B. Hình tam giác");
+                            doc.InsertParagraph("C. Hình cầu");
+                            doc.InsertParagraph("D. Hình nón");
+                            doc.InsertParagraph("Đáp án: C");
+
+                            doc.Save();
+                        }
+                        MessageBox.Show(this.ParentForm, "Đã tải file mẫu thành công! Hãy mở file lên để xem định dạng.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this.ParentForm, "Lỗi tạo file Word: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
         }
 
-        private void dtpDueDate_ValueChanged(object sender, EventArgs e)
+        // --- SỰ KIỆN 2: NHẬP FILE WORD ---
+        private async void btnImportWord_Click(object sender, EventArgs e)
         {
+            if (_examService == null)
+            {
+                MessageBox.Show(this.ParentForm, "Dịch vụ bài thi chưa được khởi tạo!", "Lỗi hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Filter = "Word Document|*.docx";
+                ofd.Title = "Chọn đề thi Word cần nhập";
+
+                // QUAN TRỌNG: Truyền this.ParentForm vào để tránh bị treo
+                if (ofd.ShowDialog(this.ParentForm) == DialogResult.OK)
+                {
+                    // Hiện popup nhỏ để hỏi Tên đề thi và Thời gian
+                    var (title, duration) = PromptForExamDetails();
+
+                    if (string.IsNullOrEmpty(title)) return; // Người dùng bấm Hủy
+
+                    try
+                    {
+                        btnImportWord.Text = "ĐANG XỬ LÝ...";
+                        btnImportWord.Enabled = false;
+
+                        var exam = await _examService.ImportExamFromWordAsync(_classId, title, duration, ofd.FileName);
+
+                        MessageBox.Show(this.ParentForm, $"Nhập đề thi thành công!\nĐã trích xuất được {exam.Questions.Count} câu hỏi.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        await LoadExamsAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this.ParentForm, "Lỗi khi đọc file Word: Định dạng không đúng hoặc file đang bị mở bởi phần mềm khác.\n\nChi tiết: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        btnImportWord.Text = "NHẬP ĐỀ TỪ WORD";
+                        btnImportWord.Enabled = true;
+                    }
+                }
+            }
+        }
+
+        // Hàm hỗ trợ: Hiển thị popup hỏi tên đề thi và thời gian
+        private (string Title, int Duration) PromptForExamDetails()
+        {
+            using (Form prompt = new Form())
+            {
+                prompt.Width = 400;
+                prompt.Height = 200;
+                prompt.FormBorderStyle = FormBorderStyle.FixedDialog;
+                prompt.Text = "Thông tin đề thi";
+                prompt.StartPosition = FormStartPosition.CenterParent;
+                prompt.MaximizeBox = false;
+                prompt.MinimizeBox = false;
+
+                Label textLabel = new Label() { Left = 20, Top = 20, Text = "Tên đề thi:" };
+                TextBox inputBox = new TextBox() { Left = 20, Top = 45, Width = 340 };
+
+                Label timeLabel = new Label() { Left = 20, Top = 80, Text = "Thời gian làm bài (phút):" };
+                NumericUpDown timeBox = new NumericUpDown() { Left = 180, Top = 78, Width = 80, Minimum = 5, Maximum = 180, Value = 45 };
+
+                Button confirmation = new Button() { Text = "Xác nhận", Left = 260, Width = 100, Top = 120, DialogResult = DialogResult.OK };
+
+                prompt.Controls.Add(textLabel);
+                prompt.Controls.Add(inputBox);
+                prompt.Controls.Add(timeLabel);
+                prompt.Controls.Add(timeBox);
+                prompt.Controls.Add(confirmation);
+                prompt.AcceptButton = confirmation;
+
+                // QUAN TRỌNG: Truyền this.ParentForm vào để tránh bị treo
+                if (prompt.ShowDialog(this.ParentForm) == DialogResult.OK)
+                {
+                    return (inputBox.Text.Trim(), (int)timeBox.Value);
+                }
+
+                return (null, 0);
+            }
         }
     }
 }

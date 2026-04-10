@@ -44,6 +44,30 @@ namespace OmniSight.UI.Forms
             );
         }
 
+        private void btnOpenExamManager_Click(object sender, EventArgs e)
+        {
+            // 1. Kiểm tra quyền giáo viên trước
+            var user = _authService.CurrentUser;
+            if (user == null) return;
+
+            if (!user.IsTeacher)
+            {
+                MessageBox.Show("Chỉ giáo viên mới có quyền tạo đề thi.", "Truy cập bị từ chối",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. Lấy services cần thiết
+            var examService = _serviceProvider.GetRequiredService<ExamService>();
+            var classService = _serviceProvider.GetRequiredService<ClassService>();
+
+            // 3. Hiển thị Form quản lý bài thi
+            using (var frm = new FrmExamManagement(examService, classService, user.UserId))
+            {
+                frm.ShowDialog(this);
+            }
+        }
+
         private void MainForm_Load(object sender, EventArgs e)
         {
             this.DrawerTabControl = this.materialTabControl1;
@@ -223,7 +247,7 @@ namespace OmniSight.UI.Forms
             }
         }
 
-        // --- ĐÃ SỬA: SỰ KIỆN DOUBLE CLICK VÀO LỚP HỌC ---
+        // Double-click on class list
         private void lvwClasses_MouseDoubleClick(object sender, EventArgs e)
         {
             var _currentUser = _authService.CurrentUser;
@@ -236,32 +260,30 @@ namespace OmniSight.UI.Forms
             var streamService = _serviceProvider.GetRequiredService<StreamService>();
             var classService = _serviceProvider.GetRequiredService<ClassService>();
             var assignmentService = _serviceProvider.GetRequiredService<AssignmentService>();
+            var examService = _serviceProvider.GetRequiredService<ExamService>();
             int currentUserId = _currentUser?.UserId ?? 0;
 
-            // Gọi hàm sinh ra Tab mới thay vì Form mới
-            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, currentUserId);
+            // Open class detail tab and pass examService
+            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, examService, currentUserId);
         }
 
-        // --- HÀM MỚI: TẠO TAB CHI TIẾT LỚP HỌC (SPA STYLE) ---
-        private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, int currentUserId)
+        private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, ExamService examService, int currentUserId)
         {
             string tabName = "tabClass_" + classId;
             TabPage tabDetail = materialTabControl1.TabPages[tabName];
 
             if (tabDetail == null)
             {
-                // 1. Tạo TabPage mới
                 tabDetail = new TabPage();
                 tabDetail.Name = tabName;
                 tabDetail.Text = "Lớp: " + className;
-                tabDetail.BackColor = Color.White; // BẮT BUỘC: Phải có dòng này để tránh bị xanh/đen nền
+                tabDetail.BackColor = Color.White;
 
-                // 2. Tạo UserControl
                 var ucDetail = new UcClassDetail(streamService, classService, _authService, currentUserId, classId);
-                ucDetail.SetAssignmentService(assignmentService); // Gán AssignmentService
-                ucDetail.Dock = DockStyle.Fill; // Lấp đầy TabPage
+                ucDetail.SetAssignmentService(assignmentService);
+                ucDetail.SetExamService(examService);
+                ucDetail.Dock = DockStyle.Fill;
 
-                // 3. Add vào
                 tabDetail.Controls.Add(ucDetail);
                 materialTabControl1.TabPages.Add(tabDetail);
             }

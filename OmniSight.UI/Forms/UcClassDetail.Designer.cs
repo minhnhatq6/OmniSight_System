@@ -1,4 +1,7 @@
-﻿namespace OmniSight.UI.Forms
+﻿using System;
+using System.Drawing;
+using System.Windows.Forms;
+namespace OmniSight.UI.Forms
 {
     partial class UcClassDetail
     {
@@ -35,6 +38,8 @@
             lblAssignmentTitle = new MaterialSkin.Controls.MaterialLabel();
             tabGrading = new TabPage();
             flpGrading = new FlowLayoutPanel();
+            tabExams = new TabPage();
+            flpExams = new FlowLayoutPanel();
             tabMembers = new TabPage();
             flpMembers = new FlowLayoutPanel();
             lblGradingTitle = new MaterialSkin.Controls.MaterialLabel();
@@ -43,8 +48,12 @@
             colAssignment = new ColumnHeader();
             colLink = new ColumnHeader();
             colScore = new ColumnHeader();
+            lblExamsTitle = new MaterialSkin.Controls.MaterialLabel();
             lblMembersTitle = new MaterialSkin.Controls.MaterialLabel();
             materialTabSelector1 = new MaterialSkin.Controls.MaterialTabSelector();
+            this.panelExamTeacher = new System.Windows.Forms.Panel();
+            this.btnDownloadTemplate = new MaterialSkin.Controls.MaterialButton();
+            this.btnImportWord = new MaterialSkin.Controls.MaterialButton();
             materialTabControl1.SuspendLayout();
             tabStream.SuspendLayout();
             panelPost.SuspendLayout();
@@ -52,6 +61,7 @@
             panelCreateAssignment.SuspendLayout();
             tabGrading.SuspendLayout();
             tabMembers.SuspendLayout();
+            this.panelExamTeacher.SuspendLayout();
             SuspendLayout();
             // 
             // materialTabControl1
@@ -60,6 +70,7 @@
             materialTabControl1.Controls.Add(tabStream);
             materialTabControl1.Controls.Add(tabAssignments);
             materialTabControl1.Controls.Add(tabGrading);
+            materialTabControl1.Controls.Add(tabExams);
             materialTabControl1.Controls.Add(tabMembers);
             materialTabControl1.Depth = 0;
             materialTabControl1.Location = new Point(0, 42);
@@ -214,7 +225,6 @@
             dtpDueDate.Name = "dtpDueDate";
             dtpDueDate.Size = new Size(193, 23);
             dtpDueDate.TabIndex = 6;
-            dtpDueDate.ValueChanged += dtpDueDate_ValueChanged;
             // 
             // lblDueDate
             // 
@@ -304,6 +314,18 @@
             lblAssignmentTitle.TabIndex = 0;
             lblAssignmentTitle.Text = "Khu vực giao bài";
             // 
+            // flpGrading
+            // 
+            flpGrading.AutoScroll = true;
+            flpGrading.Dock = DockStyle.Fill;
+            flpGrading.Location = new Point(3, 3);
+            flpGrading.Name = "flpGrading";
+            flpGrading.Size = new Size(836, 424);
+            flpGrading.TabIndex = 0;
+            flpGrading.Controls.Add(lblGradingTitle);
+            flpGrading.Controls.Add(lvwSubmissions);
+
+            // 
             // tabGrading
             // 
             tabGrading.BackColor = Color.White;
@@ -314,16 +336,56 @@
             tabGrading.Size = new Size(842, 430);
             tabGrading.TabIndex = 2;
             tabGrading.Text = "Chấm Điểm";
-            tabGrading.UseVisualStyleBackColor = true;
             // 
-            // flpGrading
+            // tabExams
             // 
-            flpGrading.AutoScroll = true;
-            flpGrading.Dock = DockStyle.Fill;
-            flpGrading.Location = new Point(3, 3);
-            flpGrading.Name = "flpGrading";
-            flpGrading.Size = new Size(836, 424);
-            flpGrading.TabIndex = 0;
+            tabExams.BackColor = Color.White;
+            tabExams.Controls.Add(flpExams); // Danh sách đề nằm dưới
+            tabExams.Controls.Add(panelExamTeacher); // Thanh công cụ nằm trên
+            tabExams.Location = new Point(4, 24);
+            tabExams.Name = "tabExams";
+            tabExams.Padding = new Padding(3);
+            tabExams.Size = new Size(842, 430);
+            tabExams.TabIndex = 3;
+            tabExams.Text = "Đề Thi";
+
+            // 
+            // panelExamTeacher (Thanh chứa nút bấm)
+            // 
+            this.panelExamTeacher.Dock = DockStyle.Top;
+            this.panelExamTeacher.Height = 60;
+            this.panelExamTeacher.Controls.Add(this.btnDownloadTemplate);
+            this.panelExamTeacher.Controls.Add(this.btnImportWord);
+            this.panelExamTeacher.Name = "panelExamTeacher";
+
+            // 
+            // btnDownloadTemplate
+            // 
+            this.btnDownloadTemplate.Location = new Point(10, 10);
+            this.btnDownloadTemplate.Name = "btnDownloadTemplate";
+            this.btnDownloadTemplate.Size = new Size(130, 36);
+            this.btnDownloadTemplate.Text = "TẢI FILE MẪU";
+            this.btnDownloadTemplate.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined;
+            this.btnDownloadTemplate.Click += new EventHandler(btnDownloadTemplate_Click);
+
+            // 
+            // btnImportWord
+            // 
+            this.btnImportWord.Location = new Point(160, 10);
+            this.btnImportWord.Name = "btnImportWord";
+            this.btnImportWord.Size = new Size(150, 36);
+            this.btnImportWord.Text = "NHẬP ĐỀ TỪ WORD";
+            this.btnImportWord.Click += new EventHandler(btnImportWord_Click);
+
+            // 
+            // flpExams (Danh sách đề thi)
+            // 
+            flpExams.AutoScroll = true;
+            flpExams.Dock = DockStyle.Fill; // Để Fill để nó chiếm phần còn lại dưới Panel
+            flpExams.Location = new Point(3, 63);
+            flpExams.Name = "flpExams";
+            flpExams.Size = new Size(836, 364);
+            flpExams.TabIndex = 0;
             // 
             // tabMembers
             // 
@@ -333,7 +395,7 @@
             tabMembers.Name = "tabMembers";
             tabMembers.Padding = new Padding(3);
             tabMembers.Size = new Size(842, 430);
-            tabMembers.TabIndex = 3;
+            tabMembers.TabIndex = 4;
             tabMembers.Text = "Danh sách học sinh";
             tabMembers.UseVisualStyleBackColor = true;
             // 
@@ -424,7 +486,7 @@
             materialTabSelector1.Name = "materialTabSelector1";
             materialTabSelector1.Size = new Size(850, 42);
             materialTabSelector1.TabIndex = 1;
-            materialTabSelector1.Click += materialTabSelector1_Click;
+
             // 
             // UcClassDetail
             // 
@@ -476,8 +538,14 @@
         private System.Windows.Forms.ColumnHeader colAssignment;
         private System.Windows.Forms.ColumnHeader colLink;
         private System.Windows.Forms.ColumnHeader colScore;
+        private System.Windows.Forms.TabPage tabExams;
+        private System.Windows.Forms.FlowLayoutPanel flpExams;
+        private MaterialSkin.Controls.MaterialLabel lblExamsTitle;
         private System.Windows.Forms.TabPage tabMembers;
         private System.Windows.Forms.FlowLayoutPanel flpMembers;
         private MaterialSkin.Controls.MaterialLabel lblMembersTitle;
+        private System.Windows.Forms.Panel panelExamTeacher;
+        private MaterialSkin.Controls.MaterialButton btnDownloadTemplate;
+        private MaterialSkin.Controls.MaterialButton btnImportWord;
     }
 }

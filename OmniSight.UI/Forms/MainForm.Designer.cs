@@ -365,6 +365,27 @@
             tabSettings.TabIndex = 3;
             tabSettings.Text = "Cài đặt";
             tabSettings.UseVisualStyleBackColor = true;
+            // Add Exams management button for teachers
+            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
+            btnOpenExamManager.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenExamManager.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnOpenExamManager.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            btnOpenExamManager.Depth = 0;
+            btnOpenExamManager.HighEmphasis = true;
+            btnOpenExamManager.Icon = null;
+            btnOpenExamManager.Location = new Point(600, 15);
+            btnOpenExamManager.Margin = new Padding(4, 6, 4, 6);
+            btnOpenExamManager.MouseState = MaterialSkin.MouseState.HOVER;
+            btnOpenExamManager.Name = "btnOpenExamManager";
+            btnOpenExamManager.NoAccentTextColor = Color.Empty;
+            btnOpenExamManager.Size = new Size(140, 36);
+            btnOpenExamManager.TabIndex = 10;
+            btnOpenExamManager.Text = "Quản lý đề thi";
+            btnOpenExamManager.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnOpenExamManager.UseAccentColor = false;
+            btnOpenExamManager.UseVisualStyleBackColor = true;
+            btnOpenExamManager.Click += btnOpenExamManager_Click;
+            tabSettings.Controls.Add(btnOpenExamManager);
             // 
             // imageList1
             // 
@@ -375,6 +396,8 @@
             imageList1.Images.SetKeyName(1, "Settings");
             imageList1.Images.SetKeyName(2, "Class");
             imageList1.Images.SetKeyName(3, "Home");
+            // Declare btnOpenExamManager field
+            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
             // 
             // cmsUserMenu
             // 
@@ -446,6 +469,30 @@
             cmsUserMenu.ResumeLayout(false);
             ResumeLayout(false);
 
+            // Add a new button to tabSettings for Exams
+            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
+            tabSettings.Controls.Add(btnOpenExamManager);
+            // 
+            // btnOpenExamManager
+            // 
+            btnOpenExamManager.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenExamManager.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnOpenExamManager.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
+            btnOpenExamManager.Depth = 0;
+            btnOpenExamManager.HighEmphasis = true;
+            btnOpenExamManager.Icon = null;
+            btnOpenExamManager.Location = new Point(600, 15);
+            btnOpenExamManager.Margin = new Padding(4, 6, 4, 6);
+            btnOpenExamManager.MouseState = MaterialSkin.MouseState.HOVER;
+            btnOpenExamManager.Name = "btnOpenExamManager";
+            btnOpenExamManager.NoAccentTextColor = Color.Empty;
+            btnOpenExamManager.Size = new Size(140, 36);
+            btnOpenExamManager.TabIndex = 10;
+            btnOpenExamManager.Text = "Quản lý đề thi";
+            btnOpenExamManager.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnOpenExamManager.UseAccentColor = false;
+            btnOpenExamManager.UseVisualStyleBackColor = true;
+            btnOpenExamManager.Click += btnOpenExamManager_Click;
         }
 
         #endregion
@@ -477,5 +524,6 @@
         private ColumnHeader columnHeader1;
         private ColumnHeader columnHeader2;
         private MaterialSkin.Controls.MaterialButton btnOpenJoinClass;
+        private MaterialSkin.Controls.MaterialButton btnOpenExamManager;
     }
 }

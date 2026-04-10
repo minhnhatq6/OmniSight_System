@@ -93,7 +93,13 @@ namespace OmniSight.Services
                 .ToListAsync();
         }
 
-        // 2. Chức năng Học sinh Tham gia lớp 
+        public async Task<string> GetClassNameAsync(int classId)
+        {
+            var cls = await _context.Classes.FindAsync(classId);
+            return cls?.ClassName ?? "N/A";
+        }
+
+        // 2. Chức năng Học sinh Tham gia lớp
         public async Task<bool> JoinClassAsync(string joinCode, int studentId)
         {
             var targetClass = await _context.Classes.FirstOrDefaultAsync(c => c.JoinCode == joinCode);
