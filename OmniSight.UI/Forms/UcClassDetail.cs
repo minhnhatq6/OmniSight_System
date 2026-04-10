@@ -144,7 +144,21 @@ namespace OmniSight.UI.Forms
             if (isTeacher)
             {
                 Button btnManage = new Button { Text = "🔧 Quản lý", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(33,150,243), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-                btnManage.Click += (s,e) => MessageBox.Show("Tính năng quản lý đề thi chưa được triển khai.");
+                btnManage.Click += (s,e) =>
+                {
+                    try
+                    {
+                        // Open exam management form for teacher
+                        using (var frm = new FrmExamManagement(_examService, _classService, _currentUserId))
+                        {
+                            frm.ShowDialog();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Lỗi mở giao diện quản lý bài thi: " + ex.Message);
+                    }
+                };
                 card.Controls.Add(btnManage);
             }
             else

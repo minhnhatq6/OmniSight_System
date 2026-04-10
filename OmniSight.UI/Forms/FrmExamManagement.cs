@@ -478,9 +478,14 @@ namespace OmniSight.UI.Forms
 
         private async void CbExamFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbExamFilter.SelectedValue == null) return;
+            if (cbExamFilter.SelectedItem == null) return;
 
-            var examId = (int)cbExamFilter.SelectedValue;
+            // Get the selected Exam object directly
+            var selectedExam = cbExamFilter.SelectedItem as Exam;
+            if (selectedExam == null) return;
+
+            int examId = selectedExam.ExamId;
+
             try
             {
                 var results = await _examService.GetExamResultsAsync(examId);
