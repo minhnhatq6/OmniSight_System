@@ -516,8 +516,37 @@ namespace OmniSight.UI.Forms
                 return;
             }
 
-            // Implement detailed result view
-            MessageBox.Show("Tính năng xem chi tiết kết quả sẽ được triển khai");
+            try
+            {
+                // Get selected result data
+                var selectedRow = dgvResults.SelectedRows[0];
+                string studentName = selectedRow.Cells["StudentName"].Value?.ToString() ?? "";
+
+                // Find the exam result from the list
+                var examId = (int)cbExamFilter.SelectedValue;
+                if (cbExamFilter.SelectedItem is Exam exam)
+                {
+                    // Get all results and find matching student
+                    var results = await _examService.GetExamResultsAsync(exam.ExamId);
+                    var examResult = results.FirstOrDefault(r => r.Student?.FullName == studentName);
+
+                    if (examResult != null)
+                    {
+                        using (var frm = new FrmExamResultDetail(_examService, exam, examResult, examResult.Student))
+                        {
+                            frm.ShowDialog(this);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Không tìm thấy kết quả của học sinh này");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi xem chi tiết: " + ex.Message);
+            }
         }
 
         private async Task LoadClassesAsync()
