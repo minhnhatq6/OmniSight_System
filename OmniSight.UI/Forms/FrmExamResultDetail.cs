@@ -1,14 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using MaterialSkin.Controls;
 using OmniSight.Core.Entities;
 using OmniSight.Services;
-
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 namespace OmniSight.UI.Forms
 {
     public class FrmExamResultDetail : Form
@@ -18,7 +19,7 @@ namespace OmniSight.UI.Forms
         private readonly User _student;
         private ExamResult _examResult;
         private List<Question> _questions;
-        private Dictionary<int, string> _studentAnswers;
+        private Dictionary<string, string> _studentAnswers;
 
         private MaterialLabel lblStudentName;
         private MaterialLabel lblScore;
@@ -28,6 +29,7 @@ namespace OmniSight.UI.Forms
         private MaterialButton btnExportPDF;
         private MaterialButton btnExportExcel;
         private MaterialButton btnClose;
+        private DataGridView dgvViolations;
 
         public FrmExamResultDetail(ExamService examService, Exam exam, ExamResult examResult, User student)
         {
@@ -36,7 +38,7 @@ namespace OmniSight.UI.Forms
             _examResult = examResult;
             _student = student;
             _questions = new List<Question>();
-            _studentAnswers = new Dictionary<int, string>();
+            _studentAnswers = new Dictionary<string, string>();
             InitializeComponent();
             LoadData();
         }
@@ -113,13 +115,15 @@ namespace OmniSight.UI.Forms
             };
 
             dgvAnswers.Columns.AddRange(
-                new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
-                new DataGridViewTextBoxColumn { Name = "QuestionNum", HeaderText = "Câu", Width = 40 },
-                new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung Câu Hỏi", Width = 250 },
-                new DataGridViewTextBoxColumn { Name = "StudentAnswer", HeaderText = "Đáp Án của Học Sinh", Width = 80, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Blue } },
-                new DataGridViewTextBoxColumn { Name = "CorrectAnswer", DataPropertyName = "CorrectOption", HeaderText = "Đáp Án Đúng", Width = 80, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Green } },
-                new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Kết Quả", Width = 80, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } }
-            );
+    new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
+    new DataGridViewTextBoxColumn { Name = "QuestionNum", DataPropertyName = "QuestionNum", HeaderText = "Câu", Width = 50 },
+    new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung Câu Hỏi", Width = 300 },
+
+    // Sửa DataPropertyName cho khớp với logic bên dưới
+    new DataGridViewTextBoxColumn { Name = "StudentAnswer", DataPropertyName = "StudentAnswer", HeaderText = "Đáp Án của HS", Width = 120, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Blue } },
+    new DataGridViewTextBoxColumn { Name = "CorrectAnswer", DataPropertyName = "CorrectAnswer", HeaderText = "Đáp Án Đúng", Width = 120, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Green } },
+    new DataGridViewTextBoxColumn { Name = "Status", DataPropertyName = "Status", HeaderText = "Kết Quả", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } }
+);
 
             // Buttons Panel
             var pnlButtons = new Panel
@@ -156,14 +160,60 @@ namespace OmniSight.UI.Forms
                 Height = 35
             };
             btnClose.Click += (s, e) => this.Close();
+            var lblViolationTitle = new Label { Text = "📝 Nhật Ký Vi Phạm", Font = new Font("Roboto", 12, FontStyle.Bold), Location = new Point(10, 400), AutoSize = true };
+
+            dgvViolations = new DataGridView
+            {
+                Location = new Point(10, 430),
+                Width = 870,
+                Height = 300,
+                AutoGenerateColumns = false,
+                AllowUserToAddRows = false,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                ReadOnly = true
+            };
+
+            dgvViolations.Columns.AddRange(
+                new DataGridViewTextBoxColumn { Name = "Timestamp", DataPropertyName = "Timestamp", HeaderText = "Thời gian", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm:ss dd/MM" }, FillWeight = 20 },
+                new DataGridViewTextBoxColumn { Name = "ViolationType", DataPropertyName = "ViolationType", HeaderText = "Hành Vi", FillWeight = 50 },
+                new DataGridViewLinkColumn { Name = "ImageUrl", DataPropertyName = "ImageUrl", HeaderText = "Bằng Chứng", FillWeight = 30, LinkColor = Color.Blue, TrackVisitedState = false }
+            );
+
+            // Thêm sự kiện để bấm vào link mở ảnh
+            dgvViolations.CellContentClick += DgvViolations_CellContentClick;
 
             pnlButtons.Controls.AddRange(new Control[] { btnExportExcel, btnExportPDF, btnClose });
 
             this.Controls.Add(dgvAnswers);
+            this.Controls.Add(lblViolationTitle); // Thêm tiêu đề
+            this.Controls.Add(dgvViolations);   // Thêm bảng vi phạm
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlButtons);
         }
+        private void DgvViolations_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Chỉ xử lý khi bấm vào cột "Bằng Chứng" và không phải dòng header
+            if (e.RowIndex >= 0 && e.ColumnIndex == dgvViolations.Columns["ImageUrl"].Index)
+            {
+                string url = dgvViolations.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
 
+                // Mở link bằng trình duyệt mặc định
+                if (!string.IsNullOrEmpty(url) && url.StartsWith("http"))
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Không thể mở link bằng chứng: " + ex.Message);
+                    }
+                }
+            }
+        }
         private async void LoadData()
         {
             try
@@ -171,8 +221,38 @@ namespace OmniSight.UI.Forms
                 // Load questions
                 _questions = await _examService.GetQuestionsByExamIdAsync(_exam.ExamId);
 
-                // Load student answers from database (placeholder - need to extend ExamResult to store answers)
-                // For now, we'll display the questions and mark as correct/incorrect based on score
+                // ===== ĐOẠN CODE ĐỌC ĐÁP ÁN ĐÃ ĐƯỢC SỬA =====
+                if (!string.IsNullOrEmpty(_examResult.AnswersData))
+                {
+                    try
+                    {
+                        // Sửa int thành string để khớp với JSON
+                        _studentAnswers = JsonSerializer.Deserialize<Dictionary<string, string>>(_examResult.AnswersData);
+                    }
+                    catch (JsonException) // Bắt lỗi cụ thể để biết lỗi do JSON
+                    {
+                        // Nếu JSON bị lỗi, coi như học sinh không trả lời câu nào
+                        _studentAnswers = new Dictionary<string, string>();
+                    }
+                }
+                else
+                {
+                    _studentAnswers = new Dictionary<string, string>();
+                }
+                // Đổ dữ liệu vi phạm vào bảng dgvViolations
+                if (_examResult.ViolationLogs != null && _examResult.ViolationLogs.Any())
+                {
+                    var violationData = _examResult.ViolationLogs.Select(v => new
+                    {
+                        v.Timestamp,
+                        v.ViolationType,
+                        ImageUrl = string.IsNullOrEmpty(v.ImageUrl) ? "(không có)" : v.ImageUrl
+                    }).OrderBy(v => v.Timestamp).ToList();
+
+                    dgvViolations.DataSource = violationData;
+                }
+                // ===========================================
+
                 RefreshAnswersGrid();
             }
             catch (Exception ex)
@@ -180,10 +260,13 @@ namespace OmniSight.UI.Forms
                 MessageBox.Show("Lỗi tải dữ liệu: " + ex.Message);
             }
         }
-
+       
         private void RefreshAnswersGrid()
         {
+            // Đảm bảo dgv không bị kẹt dữ liệu cũ
             dgvAnswers.DataSource = null;
+
+            if (_questions == null) return;
 
             var data = new List<dynamic>();
             for (int i = 0; i < _questions.Count; i++)
@@ -191,41 +274,41 @@ namespace OmniSight.UI.Forms
                 var question = _questions[i];
                 string studentAnswer = "Không trả lời";
                 string status = "❌ Sai";
-                Color statusColor = Color.Red;
 
-                // In real implementation, get student's actual answer from database
-                // For now, this is a placeholder
-                if (_studentAnswers.ContainsKey(question.QuestionId))
+                // Kiểm tra an toàn: studentAnswers không null và có chứa ID (dạng chuỗi)
+                if (_studentAnswers != null && _studentAnswers.ContainsKey(question.QuestionId.ToString()))
                 {
-                    studentAnswer = _studentAnswers[question.QuestionId];
-                    if (studentAnswer == question.CorrectOption)
+                    studentAnswer = _studentAnswers[question.QuestionId.ToString()];
+
+                    // So sánh đáp án (nên Trim để tránh khoảng trắng thừa)
+                    if (string.Equals(studentAnswer?.Trim(), question.CorrectOption?.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
                         status = "✅ Đúng";
-                        statusColor = Color.Green;
                     }
                 }
 
+                // Tạo đối tượng dynamic với tên thuộc tính KHỚP HOÀN TOÀN với DataPropertyName ở Bước 1
                 data.Add(new
                 {
                     QuestionId = question.QuestionId,
                     QuestionNum = i + 1,
                     Content = question.Content,
                     StudentAnswer = studentAnswer,
-                    CorrectAnswer = question.CorrectOption,
+                    CorrectAnswer = question.CorrectOption, // Tên này phải khớp DataPropertyName
                     Status = status
                 });
             }
 
             dgvAnswers.DataSource = data;
 
-            // Color code the status column
+            // Tô màu cột Kết quả
             foreach (DataGridViewRow row in dgvAnswers.Rows)
             {
-                string status = row.Cells["Status"].Value?.ToString() ?? "";
-                if (status.Contains("Đúng"))
-                    row.Cells["Status"].Style.ForeColor = Color.Green;
-                else
-                    row.Cells["Status"].Style.ForeColor = Color.Red;
+                var statusCell = row.Cells["Status"];
+                if (statusCell.Value != null)
+                {
+                    statusCell.Style.ForeColor = statusCell.Value.ToString().Contains("Đúng") ? Color.Green : Color.Red;
+                }
             }
         }
 
@@ -285,9 +368,11 @@ namespace OmniSight.UI.Forms
                     string studentAnswer = "Không trả lời";
                     string status = "Sai";
 
-                    if (_studentAnswers.ContainsKey(question.QuestionId))
+                    // Thêm .ToString() để chuyển ID từ số sang chữ
+                    if (_studentAnswers.ContainsKey(question.QuestionId.ToString()))
                     {
-                        studentAnswer = _studentAnswers[question.QuestionId];
+                        // Thêm .ToString() ở đây nữa
+                        studentAnswer = _studentAnswers[question.QuestionId.ToString()];
                         if (studentAnswer == question.CorrectOption)
                             status = "Đúng";
                     }
@@ -296,6 +381,7 @@ namespace OmniSight.UI.Forms
                     sw.WriteLine(line);
                 }
             }
+
         }
     }
 }

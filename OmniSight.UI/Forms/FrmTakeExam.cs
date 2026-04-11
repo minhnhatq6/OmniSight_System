@@ -1,26 +1,37 @@
+using Emgu.CV;
+using MaterialSkin.Controls;
+using Microsoft.Extensions.DependencyInjection;
+using OmniSight.Core.Entities;
+using OmniSight.Data;
+using OmniSight.Services;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using MaterialSkin.Controls;
-using OmniSight.Core.Entities;
-using OmniSight.Services;
 
 namespace OmniSight.UI.Forms
 {
     public class FrmTakeExam : Form
     {
+        // 1. CÁC BIẾN DỮ LIỆU VÀ SERVICE
         private readonly Exam _exam;
         private readonly ExamResult _examResult;
         private readonly ExamService _examService;
+        private readonly AntiCheatService _antiCheatService;
+        private FaceAiService _faceAiService; // Khai báo ở đây để dùng được trong toàn class
+
+        // 2. BIẾN QUẢN LÝ BÀI THI
         private List<Question> _questions;
-        private Dictionary<int, string> _answers = new Dictionary<int, string>(); // QuestionId -> Selected Option
+        private Dictionary<int, string> _answers = new Dictionary<int, string>();
         private int _currentQuestionIndex = 0;
         private System.Windows.Forms.Timer _timerCountdown;
         private int _remainingSeconds;
 
+        // 3. BIẾN UI BÀI THI
         private MaterialLabel lblTimer;
         private MaterialLabel lblProgress;
         private MaterialLabel lblQuestion;
@@ -28,11 +39,19 @@ namespace OmniSight.UI.Forms
         private MaterialButton btnPrevious, btnNext, btnSubmit;
         private FlowLayoutPanel flpQuestions;
 
-        public FrmTakeExam(Exam exam, ExamResult examResult, ExamService examService)
+        // 4. BIẾN GIÁM SÁT GIAN LẬN
+        private System.Windows.Forms.Timer _antiCheatTimer;
+        private System.Windows.Forms.Timer _cameraUiTimer;
+        private PictureBox _picCameraFeed;
+        private Label _lblMonitoringStatus;
+        private int _violationCount = 0;
+        private bool _isForceSubmitting = false;
+        public FrmTakeExam(Exam exam, ExamResult examResult, ExamService examService, AntiCheatService antiCheatService)
         {
             _exam = exam;
             _examResult = examResult;
             _examService = examService;
+            _antiCheatService = antiCheatService;
             _remainingSeconds = exam.DurationMinutes * 60;
             InitializeComponent();
         }
@@ -141,8 +160,9 @@ namespace OmniSight.UI.Forms
         {
             try
             {
-                // Load questions from service
+                // 1. Tải câu hỏi từ service
                 _questions = await _examService.GetQuestionsByExamIdAsync(_exam.ExamId);
+
                 if (_questions == null || _questions.Count == 0)
                 {
                     MessageBox.Show("Chưa có câu hỏi cho đề thi này.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -150,14 +170,162 @@ namespace OmniSight.UI.Forms
                     return;
                 }
 
+                // 2. YÊU CẦU BẬT CAM/MIC & ĐỌC QUY CHẾ
+                DialogResult confirm = MessageBox.Show(
+                    "Hệ thống yêu cầu BẬT CAMERA và MICROPHONE để giám sát và Xác thực Face ID.\n\n" +
+                    "Luật thi:\n" +
+                    "- Vắng mặt/Có người lạ/Nhìn ra ngoài/Cúi mặt/Liếc mắt > 3 giây: Cảnh báo.\n" +
+                    "- Có tiếng ồn > 10 giây: Cảnh báo.\n" +
+                    "- Chuyển Tab/Mở ứng dụng khác: Cảnh báo.\n\n" +
+                    "⚠️ NẾU VI PHẠM QUÁ 3 LẦN, HỆ THỐNG SẼ TỰ ĐỘNG THU BÀI.\n" +
+                    "Bạn có đồng ý không?", "Xác nhận & Thỏa thuận",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                if (confirm == DialogResult.No)
+                {
+                    this.Close();
+                    return;
+                }
+
+                // 3. KHỞI TẠO GIAO DIỆN & DỊCH VỤ
+                SetupAntiCheatUI();
+
+                // Lấy FaceAiService từ DI Container (thông qua AntiCheatService)
+                // Đây là một kỹ thuật Reflection nhỏ để truy cập vào biến private của service đã được tiêm
+                var faceAiServiceField = typeof(AntiCheatService).GetField("_faceAiService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var faceAiService = (FaceAiService)faceAiServiceField.GetValue(_antiCheatService);
+
+                // Bật Camera phần cứng
+                if (!faceAiService.StartCamera(0))
+                {
+                    MessageBox.Show("Không thể kết nối với Camera. Vui lòng kiểm tra lại thiết bị!", "Lỗi Camera", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Close();
+                    return;
+                }
+
+                // 4. XÁC THỰC FACE ID TRƯỚC KHI BẮT ĐẦU
+                _lblMonitoringStatus.Text = "ĐANG XÁC THỰC KHUÔN MẶT...";
+                _lblMonitoringStatus.ForeColor = Color.Blue;
+                bool isVerified = false;
+
+                var authService = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<AuthService>(Program.ServiceProvider);
+
+                // Quét trong vòng 10 giây để tìm khuôn mặt khớp với DB
+                for (int i = 0; i < 50; i++)
+                {
+                    using (var frame = faceAiService.GetFrame())
+                    {
+                        if (frame != null && !frame.IsEmpty)
+                        {
+                            _picCameraFeed.Image?.Dispose();
+                            _picCameraFeed.Image = frame.ToBitmap(); // Hiện ảnh đang quét
+
+                            var embedding = faceAiService.ExtractEmbedding(frame);
+                            if (embedding != null)
+                            {
+                                var loginResult = await authService.LoginWithFaceAsync(embedding);
+                                // Chỉ xác thực thành công khi UserID khớp
+                                if (loginResult.success && loginResult.user.UserId == _examResult.StudentId)
+                                {
+                                    isVerified = true;
+                                    break; // Thoát vòng lặp khi đã xác thực
+                                }
+                            }
+                        }
+                    }
+                    await Task.Delay(200); // Đợi 200ms mỗi lần quét
+                }
+
+                if (!isVerified)
+                {
+                    MessageBox.Show("Xác thực khuôn mặt thất bại! Khuôn mặt không khớp với hồ sơ đăng ký hoặc không phải bạn.", "Lỗi Face ID", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Close();
+                    return;
+                }
+
+                // 5. BẮT ĐẦU GIÁM SÁT VÀ TÍNH GIỜ
+                _lblMonitoringStatus.Text = "🔴 ĐANG GIÁM SÁT (CAM & MIC)";
+                _lblMonitoringStatus.ForeColor = Color.Red;
+
+                // Bắt đầu giám sát
+                _antiCheatService.StartMonitoring(this.Handle, (violationMsg) =>
+                {
+                    this.Invoke(new Action(() => {
+                        HandleViolationAlert(violationMsg);
+                    }));
+                }, _examResult.ResultId);
+
+                // Timer 1: Quét gian lận (1 giây / lần)
+                _antiCheatTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                _antiCheatTimer.Tick += async (s, ev) => await _antiCheatService.ScanForViolationsAsync();
+                _antiCheatTimer.Start();
+
+                // Timer 2: Hiển thị hình ảnh Camera lên UI (100ms / lần)
+                _cameraUiTimer = new System.Windows.Forms.Timer { Interval = 100 };
+                _cameraUiTimer.Tick += (s, ev) =>
+                {
+                    using (var frame = faceAiService.GetFrame())
+                    {
+                        if (frame != null && !frame.IsEmpty)
+                        {
+                            var oldImg = _picCameraFeed.Image;
+                            _picCameraFeed.Image = frame.ToBitmap();
+                            oldImg?.Dispose();
+                        }
+                    }
+                };
+                _cameraUiTimer.Start();
+
+                // 6. HIỂN THỊ ĐỀ THI
+                RestoreAnswersLocal();
                 DisplayQuestion(0);
                 DisplayQuestionList();
+
+                // Bắt đầu tính giờ thi
                 _timerCountdown.Start();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi tải câu hỏi: " + ex.Message);
+                MessageBox.Show("Lỗi khởi tạo bài thi: " + ex.Message);
                 this.Close();
+            }
+        }
+        private void HandleViolationAlert(string violationMsg)
+        {
+            if (_isForceSubmitting) return;
+
+            _violationCount++;
+            _lblMonitoringStatus.Text = $"⚠️ CẢNH BÁO ({_violationCount}/3): {violationMsg}";
+            _lblMonitoringStatus.ForeColor = Color.DarkOrange;
+
+            System.Media.SystemSounds.Beep.Play();
+
+            // BẢO ANTI-CHEAT TẠM DỪNG QUÉT ALT-TAB
+            if (_antiCheatService != null) _antiCheatService.IsShowingAlert = true;
+
+            MessageBox.Show(
+                this,
+                $"HỆ THỐNG PHÁT HIỆN: {violationMsg}.\nĐây là lần cảnh báo thứ {_violationCount}/3.\n\nNếu đạt 3 lần, hệ thống sẽ TỰ ĐỘNG THU BÀI!",
+                "CẢNH BÁO GIAN LẬN",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+
+            // HỌC SINH ĐÃ BẤM OK -> CHO PHÉP QUÉT TIẾP
+            if (_antiCheatService != null) _antiCheatService.IsShowingAlert = false;
+
+            _lblMonitoringStatus.Text = "🔴 ĐANG GIÁM SÁT (CAM & MIC)";
+            _lblMonitoringStatus.ForeColor = Color.Red;
+
+            // THU BÀI TỰ ĐỘNG NẾU ĐẠT 3 LẦN
+            if (_violationCount >= 3)
+            {
+                _isForceSubmitting = true;
+                _timerCountdown.Stop();
+
+                MessageBox.Show(this, "BẠN ĐÃ VI PHẠM QUY CHẾ THI 3 LẦN!\nBài thi của bạn sẽ được tự động nộp ngay bây giờ.", "THU BÀI TỰ ĐỘNG", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                SaveCurrentAnswer();
+                SubmitExamAsync();
             }
         }
 
@@ -212,7 +380,11 @@ namespace OmniSight.UI.Forms
                     Font = new Font("Roboto", 10, FontStyle.Bold)
                 };
                 int questionIndex = i;
-                btn.Click += (s, e) => DisplayQuestion(questionIndex);
+                btn.Click += (s, e) =>
+                {
+                    SaveCurrentAnswer(); // Lưu câu đang làm trước khi nhảy sang câu khác
+                    DisplayQuestion(questionIndex); // Sau đó mới hiển thị câu được chọn
+                };
                 flpQuestions.Controls.Add(btn);
             }
         }
@@ -247,6 +419,9 @@ namespace OmniSight.UI.Forms
                 else _answers.Remove(question.QuestionId);
 
                 DisplayQuestionList();
+
+                // ===== THÊM DÒNG NÀY =====
+                BackupAnswersLocal(); // Tự động lưu nháp mỗi khi chuyển câu hoặc tick đáp án
             }
         }
 
@@ -284,9 +459,19 @@ namespace OmniSight.UI.Forms
                 _examResult.Score = score;
                 _examResult.CompletedAt = DateTime.Now;
 
+                // ===== THÊM 1 DÒNG NÀY ĐỂ LƯU ĐÁP ÁN =====
+                _examResult.AnswersData = JsonSerializer.Serialize(_answers);
+                // ==========================================
+
                 // Save to DB
                 await _examService.UpdateExamResultAsync(_examResult);
-
+                // ===== THÊM ĐOẠN NÀY =====
+                // Nộp bài thành công lên Server rồi thì xóa file nháp đi để lần sau thi lại không bị dính
+                string backupPath = GetBackupFilePath();
+                if (File.Exists(backupPath))
+                {
+                    File.Delete(backupPath);
+                }
                 MessageBox.Show($"Nộp bài thành công!\n\nKết quả: {correctCount}/{_questions.Count} câu đúng\nĐiểm: {score:F1}/10", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();
             }
@@ -317,6 +502,83 @@ namespace OmniSight.UI.Forms
         {
             _timerCountdown?.Stop();
             _timerCountdown?.Dispose();
+
+            // Tắt các timer giám sát
+            _cameraUiTimer?.Stop();
+            _cameraUiTimer?.Dispose();
+            _antiCheatTimer?.Stop();
+            _antiCheatTimer?.Dispose();
+
+            // Tắt service
+            _antiCheatService?.StopMonitoring();
+            _antiCheatService?.Dispose();
+
+            // Tắt phần cứng Camera
+            _faceAiService?.StopCamera();
         }
+        // Tạo đường dẫn file lưu nháp (Vd: C:\Users\Admin\AppData\Local\Temp\OmniSight_Exam_222.json)
+        private string GetBackupFilePath()
+        {
+            return Path.Combine(Path.GetTempPath(), $"OmniSight_Exam_{_exam.ExamId}_Backup.json");
+        }
+
+        // Hàm lưu nháp xuống ổ cứng
+        private void BackupAnswersLocal()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(_answers);
+                File.WriteAllText(GetBackupFilePath(), json);
+            }
+            catch { /* Lỗi ghi file tạm thì bỏ qua, không làm gián đoạn học sinh */ }
+        }
+        private void SetupAntiCheatUI()
+        {
+            // Tạo Label trạng thái
+            _lblMonitoringStatus = new Label
+            {
+                Text = "🔴 ĐANG GIÁM SÁT (CAM & MIC)",
+                ForeColor = Color.Red,
+                Font = new Font("Roboto", 10, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(this.Width - 280, 70), // Căn góc phải
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            // Tạo PictureBox hiển thị Camera
+            _picCameraFeed = new PictureBox
+            {
+                Size = new Size(240, 180),
+                Location = new Point(this.Width - 280, 100), // Nằm dưới Label
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.Black
+            };
+
+            this.Controls.Add(_lblMonitoringStatus);
+            this.Controls.Add(_picCameraFeed);
+        }
+
+        // Hàm khôi phục bài làm từ ổ cứng
+        private void RestoreAnswersLocal()
+        {
+            try
+            {
+                string filePath = GetBackupFilePath();
+                if (File.Exists(filePath))
+                {
+                    string json = File.ReadAllText(filePath);
+                    var savedAnswers = JsonSerializer.Deserialize<Dictionary<int, string>>(json);
+                    if (savedAnswers != null && savedAnswers.Count > 0)
+                    {
+                        _answers = savedAnswers;
+                        MessageBox.Show("Phát hiện bài làm bị gián đoạn trước đó. Đã khôi phục các câu trả lời!", "Khôi phục thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch { /* Lỗi đọc file thì bắt đầu làm bài mới */ }
+        }
+
     }
 }

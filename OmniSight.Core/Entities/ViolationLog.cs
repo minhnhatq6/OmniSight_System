@@ -9,7 +9,7 @@ namespace OmniSight.Core.Entities
         [Key]
         public int LogId { get; set; }
 
-        public int ResultId { get; set; }   
+        public int ResultId { get; set; }       
         [MaxLength(50)]
         public string ViolationType { get; set; }
         [MaxLength(255)]

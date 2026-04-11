@@ -42,14 +42,11 @@ namespace OmniSight.Services
 
         public async Task<List<Exam>> GetExamsForTeacherAsync(int teacherId)
         {
-            var classIds = await _context.Classes
-                .Where(c => c.TeacherId == teacherId)
-                .Select(c => c.ClassId)
-                .ToListAsync();
-
             return await _context.Exams
-                .Where(e => classIds.Contains(e.ClassId))
-                .ToListAsync();
+          .Include(e => e.Questions)    // Tải kèm câu hỏi để đếm số lượng
+          .Include(e => e.ExamResults)  // Tải kèm kết quả để đếm số bài nộp
+          .Where(e => e.Class.TeacherId == teacherId) // Giả sử Class có TeacherId
+          .ToListAsync();
         }
 
         public async Task<List<Exam>> GetExamsForStudentAsync(int studentId)
@@ -138,6 +135,7 @@ namespace OmniSight.Services
             return await _context.ExamResults
                 .Where(r => r.ExamId == examId)
                 .Include(r => r.Student)
+                .Include(r => r.ViolationLogs)
                 .ToListAsync();
         }
 
@@ -181,6 +179,14 @@ namespace OmniSight.Services
             _context.Exams.Add(exam);
             await _context.SaveChangesAsync();
             return exam;
+        }
+        // Trong file ExamService.cs
+        public async Task<ExamResult> GetExamResultByIdAsync(int resultId)
+        {
+            // Include(er => er.Student) để lấy kèm thông tin học sinh
+            return await _context.ExamResults
+                .Include(er => er.Student)
+                .FirstOrDefaultAsync(er => er.ResultId == resultId);
         }
     }
 }

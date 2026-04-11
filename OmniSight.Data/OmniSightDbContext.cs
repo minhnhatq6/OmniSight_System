@@ -76,7 +76,7 @@ namespace OmniSight.Data
             // Lưu ý: Nếu báo lỗi ở v.Result, hãy kiểm tra tên thuộc tính trong file ViolationLog.cs
             modelBuilder.Entity<ViolationLog>()
                 .HasOne(v => v.ExamResult)
-                .WithMany()
+                .WithMany(er => er.ViolationLogs)
                 .HasForeignKey(v => v.ResultId)
                 .OnDelete(DeleteBehavior.NoAction);
         }

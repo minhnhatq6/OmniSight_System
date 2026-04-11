@@ -7,7 +7,7 @@ using System.Windows.Forms;
 using MaterialSkin.Controls;
 using Xceed.Words.NET;
 using OmniSight.Services;
-
+using Microsoft.Extensions.DependencyInjection;
 namespace OmniSight.UI.Forms
 {
     public partial class UcClassDetail : UserControl
@@ -144,14 +144,18 @@ namespace OmniSight.UI.Forms
             if (isTeacher)
             {
                 Button btnManage = new Button { Text = "🔧 Quản lý", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(33,150,243), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-                btnManage.Click += (s,e) =>
+                btnManage.Click += async (s, e) => // Thêm async ở đây
                 {
                     try
                     {
-                        // Open exam management form for teacher
                         using (var frm = new FrmExamManagement(_examService, _classService, _currentUserId))
                         {
-                            frm.ShowDialog();
+                            // Kiểm tra nếu Form Quản lý đóng lại và báo có thay đổi (DialogResult.OK)
+                            if (frm.ShowDialog(this.ParentForm) == DialogResult.OK)
+                            {
+                                // Gọi hàm tải lại toàn bộ danh sách đề thi ở giao diện ngoài
+                                await LoadExamsAsync();
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -164,16 +168,18 @@ namespace OmniSight.UI.Forms
             else
             {
                 Button btnTake = new Button { Text = "🚀 Làm thi", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(76,175,80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-                btnTake.Click += async (s,e) =>
+                btnTake.Click += async (s, e) =>
                 {
                     try
                     {
                         var result = await _examService.StartExamAsync(exam.ExamId, _currentUserId);
-                        // Open new window for exam taking (placeholder)
-                        using (var frm = new FrmTakeExam(exam, result, _examService))
+                        var antiCheatService = Program.ServiceProvider.GetRequiredService<AntiCheatService>();
+
+                        using (var frm = new FrmTakeExam(exam, result, _examService, antiCheatService))
                         {
-                            frm.ShowDialog();
+                            frm.ShowDialog(this.ParentForm); // Thêm ParentForm để Dialog hiển thị đúng
                         }
+                        await LoadExamsAsync();
                     }
                     catch (Exception ex)
                     {

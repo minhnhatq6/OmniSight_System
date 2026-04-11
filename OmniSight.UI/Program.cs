@@ -55,7 +55,8 @@ namespace OmniSight.UI
                     services.AddTransient<MainForm>();
                     services.AddTransient<FrmRegister>();
                     services.AddTransient<FrmSetPassword>();
-                    services.AddTransient<FrmFaceLogin>(); // <-- Dòng này giúp Face Login của bạn hoạt động
+                    services.AddTransient<FrmFaceLogin>();
+                    services.AddTransient<AntiCheatService>();// <-- Dòng này giúp Face Login của bạn hoạt động
                 })
                 .Build();
 

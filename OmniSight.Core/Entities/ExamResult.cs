@@ -17,6 +17,8 @@ namespace OmniSight.Core.Entities
         // Navigation properties
         public virtual Exam Exam { get; set; }
         public virtual User Student { get; set; }
+        public string? AnswersData { get; set; }
         public virtual ICollection<ViolationLog> ViolationLogs { get; set; }
+        
     }
 }
