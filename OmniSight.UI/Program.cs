@@ -20,7 +20,6 @@ namespace OmniSight.UI
     {
         public static IServiceProvider? ServiceProvider { get; private set; }
 
-        // BẮT BUỘC LÀ "void Main" ĐỂ APP KHÔNG BỊ ĐỨNG KHI MỞ HỘP THOẠI CHỌN FILE
         [STAThread]
         static void Main(string[] args)
         {
@@ -28,7 +27,7 @@ namespace OmniSight.UI
             RegisterCustomProtocol();
             ApplicationConfiguration.Initialize();
 
-            // 2. Khởi tạo Host và Services (Giữ nguyên toàn bộ cấu hình của bạn)
+            // 2. Khởi tạo Host và Services
             var host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, builder) =>
                 {
@@ -46,8 +45,6 @@ namespace OmniSight.UI
                     services.AddScoped<StreamService>();
                     services.AddScoped<AssignmentService>();
                     services.AddScoped<ExamService>();
-
-                    // Face AI Service (Khuyên dùng Singleton để camera không bị đụng độ giữa các form)
                     services.AddSingleton<FaceAiService>();
 
                     // Đăng ký các Form
@@ -56,13 +53,13 @@ namespace OmniSight.UI
                     services.AddTransient<FrmRegister>();
                     services.AddTransient<FrmSetPassword>();
                     services.AddTransient<FrmFaceLogin>();
-                    services.AddTransient<AntiCheatService>();// <-- Dòng này giúp Face Login của bạn hoạt động
+                    services.AddScoped<AntiCheatService>();
                 })
                 .Build();
 
             ServiceProvider = host.Services;
 
-            // --- SEED DATA (KHỞI TẠO MÔN HỌC MẪU NẾU TRỐNG) ---
+            // --- SEED DATA ---
             using (var scope = ServiceProvider.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<OmniSightDbContext>();
@@ -80,58 +77,75 @@ namespace OmniSight.UI
             }
 
             var authService = ServiceProvider.GetRequiredService<AuthService>();
+            bool isDeepLinkLogin = false;
 
-            // 3. XỬ LÝ NẾU MỞ TỪ LINK (DEEP LINKING) - Chạy đồng bộ để giữ luồng UI
+            // 3. XỬ LÝ NẾU MỞ TỪ LINK (DEEP LINKING)
             if (args.Length > 0 && args[0].StartsWith("omnisight://"))
             {
-                HandleDeepLink(args[0], authService).GetAwaiter().GetResult();
+                // Trả về true nếu xác thực mail và đăng nhập thành công
+                isDeepLinkLogin = HandleDeepLink(args[0], authService).GetAwaiter().GetResult();
             }
 
-            // 4. LOGIC KHỞI ĐỘNG BÌNH THƯỜNG - Chạy đồng bộ để giữ luồng UI
-            bool isLoggedIn = authService.TryAutoLoginAsync().GetAwaiter().GetResult();
-
-            if (isLoggedIn)
+            // 4. LOGIC KHỞI ĐỘNG
+            if (isDeepLinkLogin)
             {
-                Application.Run(ServiceProvider.GetRequiredService<MainForm>());
+                // NẾU VÀO TỪ MAIL: Mở thẳng MainForm và yêu cầu nhảy vào Profile
+                var mainForm = ServiceProvider.GetRequiredService<MainForm>();
+                mainForm.StartAtProfile = true; // Gán cờ để MainForm biết cần mở tab Profile
+                Application.Run(mainForm);
             }
             else
             {
-                Application.Run(ServiceProvider.GetRequiredService<FrmLogin>());
+                // LOGIC KHỞI ĐỘNG BÌNH THƯỜNG
+                bool isLoggedIn = authService.TryAutoLoginAsync().GetAwaiter().GetResult();
+                if (isLoggedIn)
+                {
+                    Application.Run(ServiceProvider.GetRequiredService<MainForm>());
+                }
+                else
+                {
+                    Application.Run(ServiceProvider.GetRequiredService<FrmLogin>());
+                }
             }
         }
 
-        // Hàm xử lý bóc tách link và xác thực
-        private static async Task HandleDeepLink(string url, AuthService authService)
+        // Hàm xử lý bóc tách link và thực hiện đăng nhập tự động
+        private static async Task<bool> HandleDeepLink(string url, AuthService authService)
         {
             try
             {
-                var uri = new Uri(url.Replace("omnisight://", "http://"));
+                // Chuẩn hóa link để dùng Uri parser (Thay omnisight:// bằng http://)
+                var uriString = url.Replace("omnisight://", "http://");
+                var uri = new Uri(uriString);
                 var query = HttpUtility.ParseQueryString(uri.Query);
 
                 string? token = query["token"];
-                string? email = query["email"];
-                string path = uri.Host;
+                string path = uri.Host; // Sẽ là "verify" hoặc "verify-email" tùy link bạn gửi
 
-                if (path == "verify-email" && !string.IsNullOrEmpty(token))
+                if (!string.IsNullOrEmpty(token))
                 {
-                    var result = await authService.VerifyTokenAsync(token, TokenType.EmailVerification);
+                    // Gọi hàm xác thực + tự gán CurrentUser trong AuthService
+                    // Lưu ý: Đảm bảo bạn đã viết hàm VerifyEmailAndLoginAsync trong AuthService
+                    var result = await authService.VerifyEmailAndLoginAsync(token);
+
                     if (result.success)
                     {
-                        MessageBox.Show("Xác thực Email thành công! Chào mừng bạn đến với OmniSight.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Xác thực Email thành công! Chào mừng bạn quay trở lại.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return true; // Báo cho Main biết để mở MainForm luôn
                     }
                     else
                     {
-                        MessageBox.Show("Mã xác thực không hợp lệ hoặc đã hết hạn.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("Mã xác thực không hợp lệ hoặc đã hết hạn.", "Lỗi xác thực", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi xử lý link: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Lỗi xử lý Deep Link: " + ex.Message);
             }
+            return false;
         }
 
-        // Hàm đăng ký link "omnisight://" vào Registry Windows
         private static void RegisterCustomProtocol()
         {
             try

@@ -8,7 +8,7 @@ using MaterialSkin;
 using MaterialSkin.Controls;
 using OmniSight.Core.Entities;
 using OmniSight.Services;
-
+using Xceed.Words.NET;
 namespace OmniSight.UI.Forms
 {
     public partial class FrmExamManagement : MaterialForm
@@ -16,7 +16,7 @@ namespace OmniSight.UI.Forms
         private readonly ExamService _examService;
         private readonly ClassService _classService;
         private readonly int _teacherId;
-
+        private MaterialButton btnImportWord;
         private List<Exam> _exams = new List<Exam>();
         private List<ExamResult> _currentExamResults = new List<ExamResult>();
         private Exam _selectedExam;
@@ -51,7 +51,8 @@ namespace OmniSight.UI.Forms
         private DataGridView dgvResults;
         private MaterialButton btnViewDetail;
         private ComboBox cbExamFilter;
-            
+        private DateTimePicker dtpStartTime, dtpEndTime;
+
         public FrmExamManagement(ExamService examService, ClassService classService, int teacherId)
         {
             _examService = examService;
@@ -120,6 +121,8 @@ namespace OmniSight.UI.Forms
             btnDeleteExam.Click += BtnDeleteExam_Click;
             btnRefresh = new MaterialButton { Text = "🔄 Tải Lại", Location = new Point(360, 10), Width = 100 };
             btnRefresh.Click += (s, e) => LoadExamsAsync();
+            // === THÊM NÚT NHẬP TỪ WORD TẠI ĐÂY ===
+            toolbar.Controls.AddRange(new Control[] { btnCreateExam, btnEditExam, btnDeleteExam, btnRefresh, btnImportWord });
 
             toolbar.Controls.AddRange(new Control[] { btnCreateExam, btnEditExam, btnDeleteExam, btnRefresh });
 
@@ -159,7 +162,6 @@ namespace OmniSight.UI.Forms
         {
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(10) };
 
-            // Exam Info
             var lblTitle = new MaterialLabel { Text = "Tên Bài Thi:", Location = new Point(10, 10), AutoSize = true };
             txtExamTitle = new MaterialTextBox { Location = new Point(150, 10), Width = 300, Hint = "Nhập tên bài thi" };
 
@@ -167,50 +169,36 @@ namespace OmniSight.UI.Forms
             cbClasses = new ComboBox { Location = new Point(150, 60), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Roboto", 11) };
 
             var lblDuration = new MaterialLabel { Text = "Thời Gian (phút):", Location = new Point(10, 110), AutoSize = true };
-            nudDuration = new NumericUpDown { Location = new Point(150, 110), Width = 100, Minimum = 5, Maximum = 180, Value = 60, Font = new Font("Roboto", 11) };
+            nudDuration = new NumericUpDown { Location = new Point(150, 110), Width = 100, Minimum = 1, Maximum = 180, Value = 60, Font = new Font("Roboto", 11) };
 
-            // Questions
-            var lblQuestions = new MaterialLabel { Text = "📋 Câu Hỏi:", Location = new Point(10, 160), AutoSize = true, Font = new Font("Roboto", 11, FontStyle.Bold) };
+            // === THÊM 2 Ô CHỌN NGÀY GIỜ BẮT ĐẦU VÀ KẾT THÚC ===
+            var lblStart = new MaterialLabel { Text = "Mở đề lúc:", Location = new Point(10, 150), AutoSize = true };
+            dtpStartTime = new DateTimePicker { Location = new Point(150, 150), Width = 150, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm" };
 
-            dgvQuestions = new DataGridView
-            {
-                Location = new Point(10, 190),
-                Width = 760,
-                Height = 250,
-                AutoGenerateColumns = false,
-                AllowUserToAddRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
+            var lblEnd = new MaterialLabel { Text = "Đóng đề lúc:", Location = new Point(320, 150), AutoSize = true };
+            dtpEndTime = new DateTimePicker { Location = new Point(420, 150), Width = 150, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm" };
 
+            // ĐẨY CAO CÁC CONTROL Ở DƯỚI XUỐNG THÊM 40px
+            var lblQuestions = new MaterialLabel { Text = "📋 Câu Hỏi:", Location = new Point(10, 200), AutoSize = true, Font = new Font("Roboto", 11, FontStyle.Bold) };
+
+            dgvQuestions = new DataGridView { Location = new Point(10, 230), Width = 760, Height = 210, AutoGenerateColumns = false, AllowUserToAddRows = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect, BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill };
             dgvQuestions.Columns.AddRange(
                 new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
                 new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung" },
                 new DataGridViewTextBoxColumn { Name = "CorrectOption", DataPropertyName = "CorrectOption", HeaderText = "Đáp Án" }
             );
 
-            // Question Toolbar
             var questionToolbar = new Panel { Location = new Point(10, 450), Width = 760, Height = 40, BackColor = Color.FromArgb(245, 245, 245) };
-            btnAddQuestion = new MaterialButton { Text = "➕ Thêm Câu", Location = new Point(10, 5), Width = 110 };
-            btnAddQuestion.Click += BtnAddQuestion_Click;
-            btnEditQuestion = new MaterialButton { Text = "✏️ Sửa Câu", Location = new Point(130, 5), Width = 110 };
-            btnEditQuestion.Click += BtnEditQuestion_Click;
-            btnDeleteQuestion = new MaterialButton { Text = "🗑️ Xóa Câu", Location = new Point(250, 5), Width = 110 };
-            btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
-
+            btnAddQuestion = new MaterialButton { Text = "➕ Thêm Câu", Location = new Point(10, 5), Width = 110 }; btnAddQuestion.Click += BtnAddQuestion_Click;
+            btnEditQuestion = new MaterialButton { Text = "✏️ Sửa Câu", Location = new Point(130, 5), Width = 110 }; btnEditQuestion.Click += BtnEditQuestion_Click;
+            btnDeleteQuestion = new MaterialButton { Text = "🗑️ Xóa Câu", Location = new Point(250, 5), Width = 110 }; btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
             questionToolbar.Controls.AddRange(new Control[] { btnAddQuestion, btnEditQuestion, btnDeleteQuestion });
 
-            // Save/Cancel
-            btnSaveExam = new MaterialButton { Text = "💾 Lưu Bài Thi", Location = new Point(10, 510), Width = 120, BackColor = Color.FromArgb(76, 175, 80), ForeColor = Color.White };
-            btnSaveExam.Click += BtnSaveExam_Click;
-            btnCancelExam = new MaterialButton { Text = "❌ Hủy", Location = new Point(140, 510), Width = 100 };
-            btnCancelExam.Click += BtnCancelExam_Click;
-
+            btnSaveExam = new MaterialButton { Text = "💾 Lưu Bài Thi", Location = new Point(10, 510), Width = 120, BackColor = Color.FromArgb(76, 175, 80), ForeColor = Color.White }; btnSaveExam.Click += BtnSaveExam_Click;
+            btnCancelExam = new MaterialButton { Text = "❌ Hủy", Location = new Point(140, 510), Width = 100 }; btnCancelExam.Click += BtnCancelExam_Click;
             lblExamInfo = new MaterialLabel { Location = new Point(10, 560), AutoSize = true, Text = "Chọn bài thi để xem chi tiết", ForeColor = Color.Gray };
 
-            panel.Controls.AddRange(new Control[] { lblTitle, txtExamTitle, lblClass, cbClasses, lblDuration, nudDuration, lblQuestions, dgvQuestions, questionToolbar, btnSaveExam, btnCancelExam, lblExamInfo });
+            panel.Controls.AddRange(new Control[] { lblTitle, txtExamTitle, lblClass, cbClasses, lblDuration, nudDuration, lblStart, dtpStartTime, lblEnd, dtpEndTime, lblQuestions, dgvQuestions, questionToolbar, btnSaveExam, btnCancelExam, lblExamInfo });
             tabExamDetail.Controls.Add(panel);
         }
 
@@ -288,13 +276,27 @@ namespace OmniSight.UI.Forms
             };
 
             dgvResults.Columns.AddRange(
-                new DataGridViewTextBoxColumn { Name = "StudentName", DataPropertyName = "StudentName", HeaderText = "Học Sinh" },
-                new DataGridViewTextBoxColumn { Name = "Score", DataPropertyName = "Score", HeaderText = "Điểm", DefaultCellStyle = new DataGridViewCellStyle { Format = "F1" } },
-                new DataGridViewTextBoxColumn { Name = "ViolationCount", DataPropertyName = "ViolationCount", HeaderText = "Số Lần Vi Phạm" },
-                new DataGridViewTextBoxColumn { Name = "StartedAt", DataPropertyName = "StartedAt", HeaderText = "Bắt Đầu", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
-                new DataGridViewTextBoxColumn { Name = "CompletedAt", DataPropertyName = "CompletedAt", HeaderText = "Kết Thúc (Nộp Bài)", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } }
-            );
+                 new DataGridViewTextBoxColumn { Name = "StudentName", DataPropertyName = "StudentName", HeaderText = "Học Sinh" },
+                 new DataGridViewTextBoxColumn { Name = "Score", DataPropertyName = "Score", HeaderText = "Điểm", DefaultCellStyle = new DataGridViewCellStyle { Format = "F1" } },
+                 new DataGridViewTextBoxColumn { Name = "ViolationCount", DataPropertyName = "ViolationCount", HeaderText = "Số Lần Vi Phạm" },
+                 new DataGridViewTextBoxColumn { Name = "StartedAt", DataPropertyName = "StartedAt", HeaderText = "Bắt Đầu", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
+                 new DataGridViewTextBoxColumn { Name = "CompletedAt", DataPropertyName = "CompletedAt", HeaderText = "Kết Thúc", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
+                 new DataGridViewTextBoxColumn { Name = "RetakeStatusDisplay", DataPropertyName = "RetakeStatusDisplay", HeaderText = "Trạng Thái" },
+
+                 // === THÊM CỘT NÚT BẤM VÀO ĐÂY ===
+                 new DataGridViewButtonColumn
+                 {
+                     Name = "ActionColumn",
+                     DataPropertyName = "ActionText", // Lấy text từ dữ liệu
+                     HeaderText = "Hành Động",
+                     UseColumnTextForButtonValue = false, // Cho phép chữ trên nút thay đổi linh hoạt
+                     FlatStyle = FlatStyle.Flat
+                 }
+             );
             dgvResults.CellFormatting += DgvResults_CellFormatting;
+
+            // === THÊM SỰ KIỆN CLICK NÚT BẤM ===
+            dgvResults.CellContentClick += DgvResults_CellContentClick;
             panel.Controls.Add(dgvResults);
             panel.Controls.Add(pnlHeader);
             tabResults.Controls.Add(panel);
@@ -303,7 +305,86 @@ namespace OmniSight.UI.Forms
         #endregion
 
         #region LOGIC XỬ LÝ DỮ LIỆU VÀ SỰ KIỆN
+        private async void BtnImportWord_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog { Filter = "Word Document|*.docx", Title = "Chọn file đề thi Word" })
+            {
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    // 1. Hiện popup hỏi Tên đề, Thời gian và Lớp học (vì Management cần ClassId)
+                    var (title, duration, classId) = await PromptForImportDetails();
+                    if (string.IsNullOrEmpty(title)) return;
 
+                    try
+                    {
+                        btnImportWord.Text = "ĐANG XỬ LÝ...";
+                        btnImportWord.Enabled = false;
+
+                        // 2. Gọi service bóc tách Word và lưu vào DB
+                        var newExam = await _examService.ImportExamFromWordAsync(classId, title, duration, ofd.FileName);
+
+                        // 3. THIẾT LẬP GIAO DIỆN SỬA NGAY LẬP TỨC
+                        _selectedExam = newExam; // Gán đề vừa tạo vào biến đang chọn
+
+                        // Đổ dữ liệu lên Tab 2
+                        txtExamTitle.Text = _selectedExam.Title;
+                        nudDuration.Value = _selectedExam.DurationMinutes;
+                        await LoadClassesAsync();
+                        cbClasses.SelectedValue = _selectedExam.ClassId;
+
+                        // Load danh sách câu hỏi vừa bóc tách được
+                        dgvQuestions.DataSource = _selectedExam.Questions.ToList();
+
+                        // Chuyển sang Tab Chi tiết để giáo viên sửa
+                        tabControlMain.SelectedTab = tabExamDetail;
+                        lblExamInfo.Text = $"Trạng thái: Vừa nhập đề từ Word. Hãy kiểm tra lại câu hỏi.";
+
+                        this.DialogResult = DialogResult.OK; // Báo cho Dashboard biết để load lại
+                        MessageBox.Show($"Nhập thành công {newExam.Questions.Count} câu hỏi!", "Thành công");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Lỗi bóc tách file: " + ex.Message);
+                    }
+                    finally
+                    {
+                        btnImportWord.Text = "📝 Nhập từ Word";
+                        btnImportWord.Enabled = true;
+                    }
+                }
+            }
+        }
+
+        // Hàm hỗ trợ popup lấy thông tin nhanh
+        private async Task<(string Title, int Duration, int ClassId)> PromptForImportDetails()
+        {
+            using (Form prompt = new Form { Width = 400, Height = 300, Text = "Thông tin đề nhập từ Word", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog })
+            {
+                Label lbl1 = new Label { Left = 20, Top = 20, Text = "Tên đề thi:", Width = 350 };
+                TextBox txtTitle = new TextBox { Left = 20, Top = 45, Width = 340 };
+
+                Label lbl2 = new Label { Left = 20, Top = 80, Text = "Thời gian (phút):", Width = 150 };
+                NumericUpDown numDur = new NumericUpDown { Left = 180, Top = 78, Width = 80, Minimum = 5, Value = 45 };
+
+                Label lbl3 = new Label { Left = 20, Top = 120, Text = "Áp dụng cho lớp:", Width = 350 };
+                ComboBox cb = new ComboBox { Left = 20, Top = 145, Width = 340, DropDownStyle = ComboBoxStyle.DropDownList };
+
+                // Load danh sách lớp vào combo
+                var classes = await _classService.GetOwnedClassesAsync(_teacherId);
+                cb.DataSource = classes;
+                cb.DisplayMember = "ClassName";
+                cb.ValueMember = "ClassId";
+
+                Button btnOk = new Button { Text = "Xác nhận nhập", Left = 240, Width = 120, Top = 200, DialogResult = DialogResult.OK };
+                prompt.Controls.AddRange(new Control[] { lbl1, txtTitle, lbl2, numDur, lbl3, cb, btnOk });
+                prompt.AcceptButton = btnOk;
+
+                if (prompt.ShowDialog() == DialogResult.OK && cb.SelectedValue != null)
+                    return (txtTitle.Text.Trim(), (int)numDur.Value, (int)cb.SelectedValue);
+
+                return (null, 0, 0);
+            }
+        }
         private async Task LoadExamsAsync()
         {
             try
@@ -420,43 +501,102 @@ namespace OmniSight.UI.Forms
                 }
             }
         }
+        private async void DgvResults_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Kiểm tra xem người dùng có click đúng vào cột "Hành Động" không
+            if (e.RowIndex >= 0 && dgvResults.Columns[e.ColumnIndex].Name == "ActionColumn")
+            {
+                var result = _currentExamResults[e.RowIndex];
 
+                // Chỉ xử lý nếu trạng thái đang là Pending
+                if (result.RetakeStatus == "Pending")
+                {
+                    var confirm = MessageBox.Show($"Bạn có chắc chắn muốn cho phép học sinh {result.Student?.FullName} làm lại bài thi này không?\n\n(Điểm và bài làm cũ sẽ bị xóa khi học sinh bắt đầu làm lại)",
+                                                  "Xác nhận duyệt", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                    if (confirm == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            await _examService.ApproveRetakeAsync(result.ResultId, true);
+                            MessageBox.Show("Đã duyệt thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            // Tải lại lưới dữ liệu để cập nhật giao diện
+                            CbExamFilter_SelectedIndexChanged(null, null);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Lỗi khi duyệt: " + ex.Message);
+                        }
+                    }
+                }
+            }
+        }
         private async void BtnSaveExam_Click(object sender, EventArgs e)
         {
+            // 1. Kiểm tra tên bài thi
             if (string.IsNullOrWhiteSpace(txtExamTitle.Text))
             {
-                MessageBox.Show("Vui lòng nhập tên bài thi"); return;
+                MessageBox.Show("Vui lòng nhập tên bài thi!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtExamTitle.Focus();
+                return;
             }
+
+            // 2. Kiểm tra chọn lớp
             if (cbClasses.SelectedValue == null)
             {
-                MessageBox.Show("Vui lòng chọn lớp học"); return;
+                MessageBox.Show("Vui lòng chọn lớp học!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            nudDuration.Validate();
+            // 3. KIỂM TRA THỜI GIAN TỐI THIỂU (Đã sửa để bắt lỗi chính xác)
+            // Sau khi đã chỉnh Minimum = 1 ở Bước 1, đoạn code này sẽ hoạt động
+            if (nudDuration.Value < 5)
+            {
+                MessageBox.Show("Thời gian làm bài phải tối thiểu là 5 phút!", "Cảnh báo",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                nudDuration.Focus();
+                return;
             }
 
             try
             {
+                btnSaveExam.Enabled = false;
+
                 if (_selectedExam == null)
                 {
+                    // TẠO MỚI
                     var classId = (int)cbClasses.SelectedValue;
                     await _examService.CreateExamAsync(classId, txtExamTitle.Text, (int)nudDuration.Value);
-                    this.DialogResult = DialogResult.OK;
                     MessageBox.Show("Tạo bài thi thành công!");
                 }
                 else
                 {
+                    // CẬP NHẬT
                     _selectedExam.Title = txtExamTitle.Text;
                     _selectedExam.DurationMinutes = (int)nudDuration.Value;
+                    _selectedExam.ClassId = (int)cbClasses.SelectedValue;
+
+                    // Gọi hàm Update đã được sửa lỗi "Tracking" ở câu trước
                     await _examService.UpdateExamAsync(_selectedExam);
-                    this.DialogResult = DialogResult.OK;
+                    _selectedExam.StartTime = dtpStartTime.Value;
+                    _selectedExam.EndTime = dtpEndTime.Value;
                     MessageBox.Show("Cập nhật bài thi thành công!");
                 }
 
-                await LoadExamsAsync();
-                tabControlMain.SelectedTab = tabExamList;
-                ClearExamDetail();
+                // Báo cho Dashboard biết để load lại dữ liệu
+                this.DialogResult = DialogResult.OK;
+
+                // Đóng form luôn để tránh lỗi đa luồng và nạp chồng dữ liệu
+                
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi lưu bài thi: " + ex.Message);
+                MessageBox.Show("Lỗi: " + ex.Message, "Lỗi hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnSaveExam.Enabled = true;
             }
         }
 
@@ -550,7 +690,15 @@ namespace OmniSight.UI.Forms
                     r.Score,
                     ViolationCount = r.ViolationLogs != null ? r.ViolationLogs.Count : 0,
                     r.StartedAt,
-                    r.CompletedAt
+                    r.CompletedAt,
+
+                    // Chuyển đổi trạng thái tiếng Anh sang tiếng Việt cho đẹp
+                    RetakeStatusDisplay = r.RetakeStatus == "Pending" ? "Đang xin làm lại" :
+                                          r.RetakeStatus == "Approved" ? "Đã cho phép" :
+                                          r.RetakeStatus == "Retaken" ? "Đang thi lại" : "",
+
+                    // Nếu đang Pending thì hiện chữ "Duyệt", không thì để trống
+                    ActionText = r.RetakeStatus == "Pending" ? "✅ Duyệt" : ""
                 }).ToList();
 
                 dgvResults.DataSource = displayData;
@@ -618,11 +766,7 @@ namespace OmniSight.UI.Forms
 
         #endregion
 
-        // Chặn lỗi gạch đỏ nếu lỡ tay xóa file Designer
-        private void InitializeComponent()
-        {
-            this.components = new System.ComponentModel.Container();
-        }
+        
         private System.ComponentModel.IContainer components = null;
         protected override void Dispose(bool disposing)
         {

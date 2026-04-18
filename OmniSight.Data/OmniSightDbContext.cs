@@ -6,11 +6,11 @@ namespace OmniSight.Data
 {
     public class OmniSightDbContext : DbContext
     {
-        // THÊM CONSTRUCTOR NÀY VÀO:
         public OmniSightDbContext(DbContextOptions<OmniSightDbContext> options)
             : base(options)
         {
         }
+
         public DbSet<User> Users { get; set; }
         public DbSet<AuthToken> AuthTokens { get; set; }
         public DbSet<Subject> Subjects { get; set; }
@@ -28,57 +28,73 @@ namespace OmniSight.Data
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=NHAT;Database=OmniSightDb;Trusted_Connection=True;TrustServerCertificate=True;");
+                // MARS=True giúp xử lý đa luồng tốt hơn
+                optionsBuilder.UseSqlServer("Server=NHAT;Database=OmniSightDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;");
             }
         }
-        // THÊM ĐOẠN NÀY VÀO:
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // 0. Cấu hình Khóa chính kép cho Thành viên lớp
             modelBuilder.Entity<ClassMember>().HasKey(cm => new { cm.ClassId, cm.StudentId });
 
-            // 1. Sửa lỗi cho Streams (Bảng tin) - MỚI BỔ SUNG
+            // 1. Cấu hình Bảng tin (Stream)
             modelBuilder.Entity<StreamEntity>()
-                .HasOne(s => s.Author) // Hoặc s.User tùy theo file Stream.cs
-                .WithMany()
+                .HasOne(s => s.Author)
+                .WithMany(u => u.Streams) // Kết nối với danh sách Streams trong User.cs
                 .HasForeignKey(s => s.AuthorId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // 2. Sửa lỗi cho ClassMember (Sinh viên tham gia lớp)
+            // 2. Cấu hình Thành viên lớp (ClassMember)
             modelBuilder.Entity<ClassMember>()
                 .HasOne(cm => cm.Student)
-                .WithMany()
+                .WithMany(u => u.ClassMemberships) // Kết nối với ClassMemberships trong User.cs
                 .HasForeignKey(cm => cm.StudentId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // 3. Sửa lỗi cho Assignment (Người tạo bài tập)
+            // 3. Cấu hình Bài tập (Assignment)
             modelBuilder.Entity<Assignment>()
                 .HasOne(a => a.Creator)
-                .WithMany()
+                .WithMany(u => u.AssignmentsCreated) // Kết nối với AssignmentsCreated trong User.cs
                 .HasForeignKey(a => a.CreatedBy)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // 4. Sửa lỗi cho Submission (Sinh viên nộp bài)
+            // 4. Cấu hình Bài nộp (Submission) - QUAN TRỌNG: Xóa cột UserId thừa
             modelBuilder.Entity<Submission>()
                 .HasOne(s => s.Student)
-                .WithMany()
+                .WithMany(u => u.Submissions) // Kết nối với Submissions trong User.cs
                 .HasForeignKey(s => s.StudentId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // 5. Sửa lỗi cho ExamResult (Sinh viên làm bài thi)
+            // 5. Cấu hình Kết quả thi (ExamResult) - QUAN TRỌNG: Xóa cột UserId thừa
             modelBuilder.Entity<ExamResult>()
                 .HasOne(er => er.Student)
-                .WithMany()
+                .WithMany(u => u.ExamResults) // Kết nối với ExamResults trong User.cs
                 .HasForeignKey(er => er.StudentId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // 6. Sửa lỗi cho ViolationLog (Bản ghi vi phạm)
-            // Lưu ý: Nếu báo lỗi ở v.Result, hãy kiểm tra tên thuộc tính trong file ViolationLog.cs
+            // 6. Cấu hình Lớp học (Class)
+            modelBuilder.Entity<Class>()
+                .HasOne(c => c.Teacher)
+                .WithMany(u => u.TeachingClasses) // Kết nối với TeachingClasses trong User.cs
+                .HasForeignKey(c => c.TeacherId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // 7. Cấu hình Nhật ký vi phạm (ViolationLog)
             modelBuilder.Entity<ViolationLog>()
                 .HasOne(v => v.ExamResult)
                 .WithMany(er => er.ViolationLogs)
                 .HasForeignKey(v => v.ResultId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // 8. Cấu hình Môn học (Subject)
+            modelBuilder.Entity<Subject>()
+                .HasOne(s => s.Teacher)
+                .WithMany() // Nếu bảng User không có danh sách môn học thì để trống
+                .HasForeignKey(s => s.TeacherId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

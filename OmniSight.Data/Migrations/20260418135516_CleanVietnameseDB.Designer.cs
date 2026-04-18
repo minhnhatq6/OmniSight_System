@@ -12,15 +12,15 @@ using OmniSight.Data;
 namespace OmniSight.Data.Migrations
 {
     [DbContext(typeof(OmniSightDbContext))]
-    [Migration("20260326112720_UpdateUserRoleAndPhone")]
-    partial class UpdateUserRoleAndPhone
+    [Migration("20260418135516_CleanVietnameseDB")]
+    partial class CleanVietnameseDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.25")
+                .HasAnnotation("ProductVersion", "8.0.26")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -29,32 +29,39 @@ namespace OmniSight.Data.Migrations
                 {
                     b.Property<int>("AssignmentId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaBaiTap");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AssignmentId"));
 
                     b.Property<string>("AttachmentUrl")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("LinkDinhKem");
 
                     b.Property<int>("ClassId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaLop");
 
                     b.Property<int>("CreatedBy")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaNguoiTao");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("MoTa");
 
                     b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("HanNop");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("TieuDe");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -67,63 +74,74 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Assignments");
+                    b.ToTable("BaiTap");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.AuthToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaToken");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("NgayHetHan");
 
                     b.Property<bool>("IsUsed")
-                        .HasColumnType("bit");
+                        .HasColumnType("bit")
+                        .HasColumnName("DaSuDung");
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ChuoiToken");
 
                     b.Property<int>("Type")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("LoaiToken");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaNguoiDung");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuthTokens");
+                    b.ToTable("TokenXacThuc");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Class", b =>
                 {
                     b.Property<int>("ClassId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaLop");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClassId"));
 
                     b.Property<string>("ClassName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("TenLop");
 
                     b.Property<string>("JoinCode")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("MaThamGia");
 
                     b.Property<int>("SubjectId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaMonHoc");
 
                     b.Property<int>("TeacherId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaGiaoVien");
 
                     b.HasKey("ClassId");
 
@@ -131,19 +149,22 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("TeacherId");
 
-                    b.ToTable("Classes");
+                    b.ToTable("LopHoc");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.ClassMember", b =>
                 {
                     b.Property<int>("ClassId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaLop");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaHocSinh");
 
                     b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("NgayThamGia");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -154,60 +175,88 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ClassMembers");
+                    b.ToTable("ThanhVienLop");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Exam", b =>
                 {
                     b.Property<int>("ExamId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaDeThi");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExamId"));
 
                     b.Property<int>("ClassId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaLop");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("NgayTao");
 
                     b.Property<int>("DurationMinutes")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("ThoiGianLamBai");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ThoiGianDongDe");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ThoiGianMoDe");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("TieuDe");
 
                     b.HasKey("ExamId");
 
                     b.HasIndex("ClassId");
 
-                    b.ToTable("Exams");
+                    b.ToTable("DeThi");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.ExamResult", b =>
                 {
                     b.Property<int>("ResultId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaKetQua");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ResultId"));
 
+                    b.Property<string>("AnswersData")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DuLieuDapAn");
+
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ThoiGianKetThuc");
 
                     b.Property<int>("ExamId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaDeThi");
+
+                    b.Property<string>("RetakeStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("TrangThaiLamLai");
 
                     b.Property<float?>("Score")
-                        .HasColumnType("real");
+                        .HasColumnType("real")
+                        .HasColumnName("DiemSo");
 
                     b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ThoiGianBatDau");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaHocSinh");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -220,72 +269,85 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ExamResults");
+                    b.ToTable("KetQuaThi");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Question", b =>
                 {
                     b.Property<int>("QuestionId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaCauHoi");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("QuestionId"));
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("NoiDung");
 
                     b.Property<string>("CorrectOption")
                         .IsRequired()
                         .HasMaxLength(1)
-                        .HasColumnType("nvarchar(1)");
+                        .HasColumnType("nvarchar(1)")
+                        .HasColumnName("DapAnDung");
 
                     b.Property<int>("ExamId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaDeThi");
 
                     b.Property<string>("OptionA")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DapAnA");
 
                     b.Property<string>("OptionB")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DapAnB");
 
                     b.Property<string>("OptionC")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DapAnC");
 
                     b.Property<string>("OptionD")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DapAnD");
 
                     b.HasKey("QuestionId");
 
                     b.HasIndex("ExamId");
 
-                    b.ToTable("Questions");
+                    b.ToTable("CauHoi");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Stream", b =>
                 {
                     b.Property<int>("PostId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaBaiDang");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PostId"));
 
                     b.Property<int>("AuthorId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaNguoiDang");
 
                     b.Property<int>("ClassId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaLop");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("NoiDung");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("NgayTao");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -298,55 +360,69 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Streams");
+                    b.ToTable("BangTin");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Subject", b =>
                 {
                     b.Property<int>("SubjectId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaMonHoc");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubjectId"));
 
                     b.Property<string>("SubjectName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("TenMonHoc");
+
+                    b.Property<int?>("TeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("MaGiaoVien");
 
                     b.HasKey("SubjectId");
 
-                    b.ToTable("Subjects");
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("MonHoc");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Submission", b =>
                 {
                     b.Property<int>("SubmissionId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaBaiNop");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubmissionId"));
 
                     b.Property<int>("AssignmentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaBaiTap");
 
                     b.Property<string>("Feedback")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("NhanXet");
 
                     b.Property<string>("FileOrLinkUrl")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("LinkBaiLam");
 
                     b.Property<float?>("Score")
-                        .HasColumnType("real");
+                        .HasColumnType("real")
+                        .HasColumnName("DiemSo");
 
                     b.Property<int>("StudentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaHocSinh");
 
                     b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("NgayNop");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -359,121 +435,122 @@ namespace OmniSight.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Submissions");
+                    b.ToTable("BaiNop");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.User", b =>
                 {
                     b.Property<int>("UserId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaNguoiDung");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
 
                     b.Property<string>("AvatarUrl")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("AnhDaiDien");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("Email");
 
                     b.Property<string>("FaceEmbedding")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FaceImageUrl")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("FaceVector")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DuLieuKhuonMat");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("HoTen");
 
                     b.Property<string>("GoogleId")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("MaGoogle");
 
                     b.Property<bool>("IsEmailConfirmed")
-                        .HasColumnType("bit");
+                        .HasColumnType("bit")
+                        .HasColumnName("DaXacNhanEmail");
 
                     b.Property<bool>("IsStudent")
-                        .HasColumnType("bit");
+                        .HasColumnType("bit")
+                        .HasColumnName("LaHocSinh");
 
                     b.Property<bool>("IsTeacher")
-                        .HasColumnType("bit");
+                        .HasColumnType("bit")
+                        .HasColumnName("LaGiaoVien");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("MatKhau");
 
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasColumnType("nvarchar(15)")
+                        .HasColumnName("SoDienThoai");
 
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("TenDangNhap");
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Users");
+                    b.ToTable("NguoiDung");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.ViolationLog", b =>
                 {
                     b.Property<int>("LogId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaViPham");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LogId"));
-
-                    b.Property<int?>("ExamResultResultId")
-                        .HasColumnType("int");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("AnhViPham");
 
                     b.Property<int>("ResultId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasColumnName("MaKetQua");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("TrangThai");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ThoiGianViPham");
 
                     b.Property<string>("ViolationType")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("LoaiViPham");
 
                     b.HasKey("LogId");
 
-                    b.HasIndex("ExamResultResultId");
-
                     b.HasIndex("ResultId");
 
-                    b.ToTable("ViolationLogs");
+                    b.ToTable("NhatKyViPham");
                 });
 
             modelBuilder.Entity("OmniSight.Core.Entities.Assignment", b =>
@@ -620,6 +697,15 @@ namespace OmniSight.Data.Migrations
                     b.Navigation("Class");
                 });
 
+            modelBuilder.Entity("OmniSight.Core.Entities.Subject", b =>
+                {
+                    b.HasOne("OmniSight.Core.Entities.User", "Teacher")
+                        .WithMany()
+                        .HasForeignKey("TeacherId");
+
+                    b.Navigation("Teacher");
+                });
+
             modelBuilder.Entity("OmniSight.Core.Entities.Submission", b =>
                 {
                     b.HasOne("OmniSight.Core.Entities.Assignment", "Assignment")
@@ -645,12 +731,8 @@ namespace OmniSight.Data.Migrations
 
             modelBuilder.Entity("OmniSight.Core.Entities.ViolationLog", b =>
                 {
-                    b.HasOne("OmniSight.Core.Entities.ExamResult", null)
-                        .WithMany("ViolationLogs")
-                        .HasForeignKey("ExamResultResultId");
-
                     b.HasOne("OmniSight.Core.Entities.ExamResult", "ExamResult")
-                        .WithMany()
+                        .WithMany("ViolationLogs")
                         .HasForeignKey("ResultId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();

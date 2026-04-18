@@ -340,24 +340,32 @@ namespace OmniSight.UI.Forms
             // tabExams
             // 
             tabExams.BackColor = Color.White;
-            tabExams.Controls.Add(flpExams); // Danh sách đề nằm dưới
-            tabExams.Controls.Add(panelExamTeacher); // Thanh công cụ nằm trên
+
+            // QUAN TRỌNG: Phải Add Panel chứa nút bấm VÀO TRƯỚC thì nó mới không bị đè
+            tabExams.Controls.Add(panelExamTeacher);
+            // Sau đó mới Add danh sách đề thi VÀO SAU để nó chiếm phần không gian còn lại ở dưới
+            tabExams.Controls.Add(flpExams);
+
             tabExams.Location = new Point(4, 24);
             tabExams.Name = "tabExams";
             tabExams.Padding = new Padding(3);
             tabExams.Size = new Size(842, 430);
             tabExams.TabIndex = 3;
             tabExams.Text = "Đề Thi";
-
             // 
             // panelExamTeacher (Thanh chứa nút bấm)
             // 
             this.panelExamTeacher.Dock = DockStyle.Top;
             this.panelExamTeacher.Height = 60;
+
+            // Thêm 3 nút vào panel
             this.panelExamTeacher.Controls.Add(this.btnDownloadTemplate);
             this.panelExamTeacher.Controls.Add(this.btnImportWord);
-            this.panelExamTeacher.Name = "panelExamTeacher";
 
+            this.btnManageExams = new MaterialSkin.Controls.MaterialButton(); // Khởi tạo nút quản lý
+            this.panelExamTeacher.Controls.Add(this.btnManageExams);
+
+            this.panelExamTeacher.Name = "panelExamTeacher";
             // 
             // btnDownloadTemplate
             // 
@@ -367,21 +375,29 @@ namespace OmniSight.UI.Forms
             this.btnDownloadTemplate.Text = "TẢI FILE MẪU";
             this.btnDownloadTemplate.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined;
             this.btnDownloadTemplate.Click += new EventHandler(btnDownloadTemplate_Click);
-
             // 
             // btnImportWord
             // 
             this.btnImportWord.Location = new Point(160, 10);
             this.btnImportWord.Name = "btnImportWord";
-            this.btnImportWord.Size = new Size(150, 36);
+            this.btnImportWord.Size = new Size(160, 36);
             this.btnImportWord.Text = "NHẬP ĐỀ TỪ WORD";
             this.btnImportWord.Click += new EventHandler(btnImportWord_Click);
-
+            // 
+            // btnManageExams (NÚT QUẢN LÝ MỚI)
+            // 
+            this.btnManageExams.Location = new Point(340, 10); // Đặt bên cạnh nút nhập Word
+            this.btnManageExams.Name = "btnManageExams";
+            this.btnManageExams.Size = new Size(160, 36);
+            this.btnManageExams.Text = "QUẢN LÝ BÀI THI";
+            this.btnManageExams.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            this.btnManageExams.UseAccentColor = true; // Màu nổi bật
+            this.btnManageExams.Click += new EventHandler(btnManageExams_Click);
             // 
             // flpExams (Danh sách đề thi)
             // 
             flpExams.AutoScroll = true;
-            flpExams.Dock = DockStyle.Fill; // Để Fill để nó chiếm phần còn lại dưới Panel
+            flpExams.Dock = DockStyle.Fill; // Bây giờ nó sẽ tự động lấp đầy phần dưới mà không đè lên nút
             flpExams.Location = new Point(3, 63);
             flpExams.Name = "flpExams";
             flpExams.Size = new Size(836, 364);
@@ -547,5 +563,6 @@ namespace OmniSight.UI.Forms
         private System.Windows.Forms.Panel panelExamTeacher;
         private MaterialSkin.Controls.MaterialButton btnDownloadTemplate;
         private MaterialSkin.Controls.MaterialButton btnImportWord;
+        private MaterialSkin.Controls.MaterialButton btnManageExams; // THÊM DÒNG NÀY
     }
 }

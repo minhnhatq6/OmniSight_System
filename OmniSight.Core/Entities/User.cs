@@ -1,51 +1,57 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OmniSight.Core.Entities
 {
+    [Table("NguoiDung")]
     public class User
     {
         [Key]
+        [Column("MaNguoiDung")]
         public int UserId { get; set; }
 
-        // Chúng ta giữ lại Guid này nếu bạn muốn, nhưng nên gán mặc định
-        public Guid Id { get; set; } = Guid.NewGuid();
-
         [Required, MaxLength(50)]
+        [Column("TenDangNhap")]
         public string Username { get; set; } = string.Empty;
 
         [Required, MaxLength(255)]
+        [Column("MatKhau")]
         public string PasswordHash { get; set; } = string.Empty;
 
         [MaxLength(100)]
+        [Column("HoTen")]
         public string FullName { get; set; } = string.Empty;
 
         [MaxLength(100)]
+        [Column("Email")]
         public string Email { get; set; } = string.Empty;
 
         [MaxLength(255)]
+        [Column("AnhDaiDien")]
         public string AvatarUrl { get; set; } = string.Empty;
 
-        public bool IsStudent { get; set; } = true;  // Mặc định luôn là học sinh
-        public bool IsTeacher { get; set; } = false; // Mặc định chưa phải giáo viên
+        [Column("LaHocSinh")]
+        public bool IsStudent { get; set; } = true;
+
+        [Column("LaGiaoVien")]
+        public bool IsTeacher { get; set; } = false;
+
         [MaxLength(15)]
-        public string Phone { get; set; } = string.Empty; // Thêm số điện thoại cho profile
-
-        // Quan trọng: Gán rỗng để Database không báo lỗi NULL
-        public string FaceVector { get; set; } = string.Empty;
-
-        [MaxLength(255)]
-        public string FaceImageUrl { get; set; } = string.Empty;
+        [Column("SoDienThoai")]
+        public string Phone { get; set; } = string.Empty;
 
         [MaxLength(100)]
+        [Column("MaGoogle")]
         public string GoogleId { get; set; } = string.Empty;
 
+        [Column("DaXacNhanEmail")]
         public bool IsEmailConfirmed { get; set; } = false;
 
+        [Column("DuLieuKhuonMat")]
         public string FaceEmbedding { get; set; } = string.Empty;
 
-        // Khởi tạo sẵn các Collection để tránh lỗi NullReferenceException sau này
         public virtual ICollection<Class> TeachingClasses { get; set; } = new List<Class>();
         public virtual ICollection<ClassMember> ClassMemberships { get; set; } = new List<ClassMember>();
         public virtual ICollection<Stream> Streams { get; set; } = new List<Stream>();

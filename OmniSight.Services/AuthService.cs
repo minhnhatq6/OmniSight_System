@@ -330,5 +330,68 @@ namespace OmniSight.Services
                 return (false, null);
             }
         }
+        public async Task<List<User>> FindMatchingUsersAsync(float[] scannedEmbedding)
+        {
+            // 1. Thay _context bằng _db (hoặc tên biến DbContext bạn đã khai báo ở đầu class này)
+            var allUsers = await _db.Users.Where(u => u.FaceEmbedding != null).ToListAsync();
+            var matches = new List<User>();
+
+            foreach (var user in allUsers)
+            {
+                try
+                {
+                    float[] dbEmbedding = user.FaceEmbedding.Split(';')
+                        .Select(s => float.Parse(s, CultureInfo.InvariantCulture)).ToArray();
+
+                    // 2. Gọi hàm tính toán (Tôi sẽ định nghĩa hàm này ngay bên dưới)
+                    double similarity = CalculateSimilarity(scannedEmbedding, dbEmbedding);
+
+                    if (similarity >= 0.7) // Ngưỡng nhận diện
+                    {
+                        matches.Add(user);
+                    }
+                }
+                catch { continue; }
+            }
+            return matches;
+        }
+
+        // 3. THÊM HÀM NÀY VÀO CUỐI CLASS AuthService ĐỂ HẾT LỖI GẠCH ĐỎ
+        private double CalculateSimilarity(float[] vec1, float[] vec2)
+        {
+            if (vec1.Length != vec2.Length) return 0;
+            double dotProduct = 0, mag1 = 0, mag2 = 0;
+            for (int i = 0; i < vec1.Length; i++)
+            {
+                dotProduct += vec1[i] * vec2[i];
+                mag1 += Math.Pow(vec1[i], 2);
+                mag2 += Math.Pow(vec2[i], 2);
+            }
+            return dotProduct / (Math.Sqrt(mag1) * Math.Sqrt(mag2));
+        }
+        public async Task<(bool success, User? user)> VerifyEmailAndLoginAsync(string tokenValue)
+        {
+            // 1. Tìm token và kèm theo User
+            var token = await _db.AuthTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == tokenValue && t.Type == TokenType.EmailVerification && !t.IsUsed);
+
+            if (token == null || DateTime.UtcNow > token.ExpiryDate) return (false, null);
+
+            // 2. Xác nhận Email thành công
+            token.IsUsed = true;
+            token.User.IsEmailConfirmed = true;
+            await _db.SaveChangesAsync();
+
+            // 3. Thiết lập đăng nhập luôn
+            CurrentUser = token.User;
+            SaveSession(token.User.UserId);
+
+            return (true, token.User);
+        }
+
+        // Sửa lại hàm RegisterAsync để gửi link dạng omnisight://
+        // Tìm trong RegisterAsync đoạn actionUrl và sửa thành:
+        // string actionUrl = $"omnisight://verify?token={tokenValue}";
     }
 }

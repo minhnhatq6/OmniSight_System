@@ -1,19 +1,26 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace OmniSight.Core.Entities
 {
-    // Dùng Data Annotation này là đủ để xác định khóa chính kép[PrimaryKey(nameof(ClassId), nameof(StudentId))]
+    [Table("ThanhVienLop")]
+    [PrimaryKey(nameof(ClassId), nameof(StudentId))]
     public class ClassMember
     {
+        [Column("MaLop")]
         public int ClassId { get; set; }
+
+        [Column("MaHocSinh")]
         public int StudentId { get; set; }
 
+        [Column("NgayThamGia")]
         public DateTime JoinedAt { get; set; }
 
-        // Navigation properties
+        [ForeignKey("ClassId")]
         public virtual Class Class { get; set; }
+
+        [ForeignKey("StudentId")]
         public virtual User Student { get; set; }
     }
 }

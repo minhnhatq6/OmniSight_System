@@ -120,5 +120,17 @@ namespace OmniSight.Services
 
             return submission;
         }
+        public async Task UpdateAssignmentAsync(int id, string title, string desc, string url, DateTime? dueDate)
+        {
+            var asm = await _context.Assignments.FindAsync(id);
+            if (asm != null)
+            {
+                asm.Title = title;
+                asm.Description = desc;
+                asm.AttachmentUrl = url;
+                asm.DueDate = dueDate;
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

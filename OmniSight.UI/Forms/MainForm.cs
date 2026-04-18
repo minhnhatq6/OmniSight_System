@@ -24,7 +24,7 @@ namespace OmniSight.UI.Forms
         private const float MIN_ZOOM = 0.7f;
         private const float MAX_ZOOM = 2.0f;
         private const float ZOOM_STEP = 0.1f;
-
+        public bool IsFirstTimeLogin { get; set; }
         public MainForm(AuthService authService, IUserService userService, IServiceProvider serviceProvider, FaceAiService faceAiService)
         {
             InitializeComponent();
@@ -67,7 +67,7 @@ namespace OmniSight.UI.Forms
                 frm.ShowDialog(this);
             }
         }
-
+        public bool StartAtProfile { get; set; } = false;
         private void MainForm_Load(object sender, EventArgs e)
         {
             this.DrawerTabControl = this.materialTabControl1;
@@ -75,11 +75,29 @@ namespace OmniSight.UI.Forms
             this.KeyDown += MainForm_KeyDown;
 
             var user = _authService.CurrentUser;
+            if (StartAtProfile)
+            {
+                // 1. Chuyển ngay sang tab Profile (thường là Index 2 tùy thiết kế của bạn)
+                materialTabControl1.SelectedTab = tabProfile;
+
+                // 2. Hiện thông báo nhắc nhở "Đẹp mắt"
+                BeginInvoke(new Action(() => {
+                    MessageBox.Show(this,
+                        "Chào mừng thành viên mới!\n\nBạn hãy dành ít giây để:\n" +
+                        "1. Chọn Vai trò (Học sinh hoặc Giáo viên).\n" +
+                        "2. Cài đặt Face ID để bảo mật tài khoản.\n\nChúc bạn có trải nghiệm tốt!",
+                        "Hoàn tất hồ sơ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }));
+            }
             if (user != null)
             {
                 lblHomeWelcome.Text = $"Chào mừng {user.FullName} đến với OmniSight!";
                 btnUserAccount.Text = user.FullName.ToUpper();
+                // --- BỔ SUNG CÁC DÒNG NÀY ---
                 txtFullName.Text = user.FullName ?? "";
+                txtPhone.Text = user.Phone ?? "";         // Load số điện thoại
+                switchStudent.Checked = user.IsStudent;   // Load trạng thái học sinh
+                switchTeacher.Checked = user.IsTeacher;   // Load trạng thái giáo viên
             }
 
             try
@@ -122,9 +140,28 @@ namespace OmniSight.UI.Forms
 
             if (success)
             {
-                user.FullName = txtFullName.Text;
-                btnUserAccount.Text = txtFullName.Text.ToUpper();
-                MessageBox.Show("Cập nhật thành công!");
+                // Reload user from DB to ensure switches and other fields reflect persisted state
+                var updatedUser = await _userService.GetUserByIdAsync(user.UserId);
+                if (updatedUser != null)
+                {
+                    _authService.SetCurrentUser(updatedUser);
+                    btnUserAccount.Text = (updatedUser.FullName ?? string.Empty).ToUpper();
+
+                    // Update UI fields to reflect saved state
+                    txtFullName.Text = updatedUser.FullName ?? string.Empty;
+                    txtPhone.Text = updatedUser.Phone ?? string.Empty;
+                    switchStudent.Checked = updatedUser.IsStudent;
+                    switchTeacher.Checked = updatedUser.IsTeacher;
+
+                    MessageBox.Show("Cập nhật thành công!");
+                }
+                else
+                {
+                    // Fallback: update minimal UI
+                    user.FullName = txtFullName.Text;
+                    btnUserAccount.Text = txtFullName.Text.ToUpper();
+                    MessageBox.Show("Cập nhật thành công! (Không thể tải lại dữ liệu người dùng)");
+                }
             }
         }
 
@@ -203,29 +240,39 @@ namespace OmniSight.UI.Forms
         private async void LoadClassList()
         {
             lvwClasses.Items.Clear();
-
             var _currentUser = _authService.CurrentUser;
             if (_currentUser == null) return;
 
             var _classService = _serviceProvider.GetRequiredService<ClassService>();
 
+            // 1. Dành cho Giáo viên
             if (_currentUser.IsTeacher)
             {
-                var classes = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
-                foreach (var c in classes)
+                var ownedClasses = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
+                foreach (var c in ownedClasses)
                 {
-                    var item = new ListViewItem(c.ClassName);
+                    // NỐI CHUỖI TẠI ĐÂY: Tên lớp - Tên môn học
+                    string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
+
+                    var item = new ListViewItem(fullDisplayName);
                     item.SubItems.Add(c.JoinCode);
                     item.Tag = c.ClassId;
                     lvwClasses.Items.Add(item);
                 }
             }
-            else
+
+            // 2. Dành cho Học sinh
+            if (_currentUser.IsStudent)
             {
-                var classes = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
-                foreach (var c in classes)
+                var joinedClasses = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
+                foreach (var c in joinedClasses)
                 {
-                    var item = new ListViewItem(c.ClassName);
+                    if (lvwClasses.Items.Cast<ListViewItem>().Any(i => (int)i.Tag == c.ClassId)) continue;
+
+                    // NỐI CHUỖI TẠI ĐÂY: Tên lớp - Tên môn học
+                    string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
+
+                    var item = new ListViewItem(fullDisplayName);
                     item.SubItems.Add("******");
                     item.Tag = c.ClassId;
                     lvwClasses.Items.Add(item);
@@ -248,26 +295,29 @@ namespace OmniSight.UI.Forms
         }
 
         // Double-click on class list
-        private void lvwClasses_MouseDoubleClick(object sender, EventArgs e)
+        private async void lvwClasses_MouseDoubleClick(object sender, EventArgs e)
         {
             var _currentUser = _authService.CurrentUser;
             if (lvwClasses.SelectedItems.Count == 0) return;
 
             var selectedItem = lvwClasses.SelectedItems[0];
             string className = selectedItem.Text;
-            int classId = (int)(selectedItem.Tag ?? 0);
+            int classId = (int)(selectedItem.Tag ?? 0); 
 
             var streamService = _serviceProvider.GetRequiredService<StreamService>();
             var classService = _serviceProvider.GetRequiredService<ClassService>();
             var assignmentService = _serviceProvider.GetRequiredService<AssignmentService>();
             var examService = _serviceProvider.GetRequiredService<ExamService>();
             int currentUserId = _currentUser?.UserId ?? 0;
+            // KIỂM TRA XEM CÓ PHẢI GIÁO VIÊN CỦA LỚP NÀY KHÔNG
+            bool isTeacherOfThisClass = await classService.IsTeacherOfClassAsync(classId, currentUserId);
 
             // Open class detail tab and pass examService
-            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, examService, currentUserId);
+            // Truyền thêm biến isTeacherOfThisClass vào cuối (đối số thứ 8)
+            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, examService, currentUserId, isTeacherOfThisClass);
         }
 
-        private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, ExamService examService, int currentUserId)
+        private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, ExamService examService, int currentUserId, bool isTeacherOfThisClass)
         {
             string tabName = "tabClass_" + classId;
             TabPage tabDetail = materialTabControl1.TabPages[tabName];
@@ -279,7 +329,7 @@ namespace OmniSight.UI.Forms
                 tabDetail.Text = "Lớp: " + className;
                 tabDetail.BackColor = Color.White;
 
-                var ucDetail = new UcClassDetail(streamService, classService, _authService, currentUserId, classId);
+                var ucDetail = new UcClassDetail(streamService, classService, _authService, currentUserId, classId, isTeacherOfThisClass);
                 ucDetail.SetAssignmentService(assignmentService);
                 ucDetail.SetExamService(examService);
                 ucDetail.Dock = DockStyle.Fill;

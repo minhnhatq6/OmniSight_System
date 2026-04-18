@@ -46,6 +46,7 @@ namespace OmniSight.UI.Forms
         private Label _lblMonitoringStatus;
         private int _violationCount = 0;
         private bool _isForceSubmitting = false;
+        private bool _isProcessingViolation = false;
         public FrmTakeExam(Exam exam, ExamResult examResult, ExamService examService, AntiCheatService antiCheatService)
         {
             _exam = exam;
@@ -193,10 +194,10 @@ namespace OmniSight.UI.Forms
                 // Lấy FaceAiService từ DI Container (thông qua AntiCheatService)
                 // Đây là một kỹ thuật Reflection nhỏ để truy cập vào biến private của service đã được tiêm
                 var faceAiServiceField = typeof(AntiCheatService).GetField("_faceAiService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                var faceAiService = (FaceAiService)faceAiServiceField.GetValue(_antiCheatService);
+                _faceAiService = (FaceAiService)faceAiServiceField.GetValue(_antiCheatService); // Bỏ chữ var ở đầu dòng này
 
                 // Bật Camera phần cứng
-                if (!faceAiService.StartCamera(0))
+                if (!_faceAiService.StartCamera(0))
                 {
                     MessageBox.Show("Không thể kết nối với Camera. Vui lòng kiểm tra lại thiết bị!", "Lỗi Camera", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     this.Close();
@@ -213,14 +214,14 @@ namespace OmniSight.UI.Forms
                 // Quét trong vòng 10 giây để tìm khuôn mặt khớp với DB
                 for (int i = 0; i < 50; i++)
                 {
-                    using (var frame = faceAiService.GetFrame())
+                    using (var frame = _faceAiService.GetFrame())
                     {
                         if (frame != null && !frame.IsEmpty)
                         {
                             _picCameraFeed.Image?.Dispose();
                             _picCameraFeed.Image = frame.ToBitmap(); // Hiện ảnh đang quét
 
-                            var embedding = faceAiService.ExtractEmbedding(frame);
+                            var embedding = _faceAiService.ExtractEmbedding(frame);
                             if (embedding != null)
                             {
                                 var loginResult = await authService.LoginWithFaceAsync(embedding);
@@ -264,7 +265,7 @@ namespace OmniSight.UI.Forms
                 _cameraUiTimer = new System.Windows.Forms.Timer { Interval = 100 };
                 _cameraUiTimer.Tick += (s, ev) =>
                 {
-                    using (var frame = faceAiService.GetFrame())
+                    using (var frame = _faceAiService.GetFrame())
                     {
                         if (frame != null && !frame.IsEmpty)
                         {
@@ -292,40 +293,49 @@ namespace OmniSight.UI.Forms
         }
         private void HandleViolationAlert(string violationMsg)
         {
-            if (_isForceSubmitting) return;
+            // 1. Nếu đang nộp bài hoặc đang hiện một bảng báo lỗi rồi thì THOÁT LUÔN, không hiện thêm
+            if (_isForceSubmitting || _isProcessingViolation) return;
 
-            _violationCount++;
-            _lblMonitoringStatus.Text = $"⚠️ CẢNH BÁO ({_violationCount}/3): {violationMsg}";
-            _lblMonitoringStatus.ForeColor = Color.DarkOrange;
-
-            System.Media.SystemSounds.Beep.Play();
-
-            // BẢO ANTI-CHEAT TẠM DỪNG QUÉT ALT-TAB
-            if (_antiCheatService != null) _antiCheatService.IsShowingAlert = true;
-
-            MessageBox.Show(
-                this,
-                $"HỆ THỐNG PHÁT HIỆN: {violationMsg}.\nĐây là lần cảnh báo thứ {_violationCount}/3.\n\nNếu đạt 3 lần, hệ thống sẽ TỰ ĐỘNG THU BÀI!",
-                "CẢNH BÁO GIAN LẬN",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-
-            // HỌC SINH ĐÃ BẤM OK -> CHO PHÉP QUÉT TIẾP
-            if (_antiCheatService != null) _antiCheatService.IsShowingAlert = false;
-
-            _lblMonitoringStatus.Text = "🔴 ĐANG GIÁM SÁT (CAM & MIC)";
-            _lblMonitoringStatus.ForeColor = Color.Red;
-
-            // THU BÀI TỰ ĐỘNG NẾU ĐẠT 3 LẦN
-            if (_violationCount >= 3)
+            try
             {
-                _isForceSubmitting = true;
-                _timerCountdown.Stop();
+                _isProcessingViolation = true; // Khóa chặn re-entry
+                _antiCheatTimer?.Stop();       // DỪNG QUÉT NGAY LẬP TỨC để không sinh thêm lỗi mới
 
-                MessageBox.Show(this, "BẠN ĐÃ VI PHẠM QUY CHẾ THI 3 LẦN!\nBài thi của bạn sẽ được tự động nộp ngay bây giờ.", "THU BÀI TỰ ĐỘNG", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _violationCount++;
+                _lblMonitoringStatus.Text = $"⚠️ CẢNH BÁO ({_violationCount}/3): {violationMsg}";
+                _lblMonitoringStatus.ForeColor = Color.DarkOrange;
+                System.Media.SystemSounds.Beep.Play();
 
-                SaveCurrentAnswer();
-                SubmitExamAsync();
+                // Nếu đạt ngưỡng 3 lần -> Thu bài ngay
+                if (_violationCount >= 3)
+                {
+                    _isForceSubmitting = true;
+                    CleanupResources(); // TẮT CAM/TIMER NGAY LẬP TỨC TRƯỚC KHI HIỆN THÔNG BÁO
+
+                    MessageBox.Show(this,
+                        $"BẠN ĐÃ VI PHẠM QUY CHẾ THI 3 LẦN: {violationMsg}.\nBài thi sẽ được tự động nộp!",
+                        "THU BÀI TỰ ĐỘNG", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    SaveCurrentAnswer();
+                    SubmitExamAsync();
+                    return;
+                }
+
+                // Nếu chưa tới 3 lần -> Cảnh báo nhắc nhở
+                MessageBox.Show(this,
+                    $"HỆ THỐNG PHÁT HIỆN: {violationMsg}.\nĐây là lần cảnh báo thứ {_violationCount}/3.",
+                    "CẢNH BÁO GIAN LẬN", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                // Chỉ khi học sinh bấm OK và chưa bị thu bài thì mới mở khóa và cho quét tiếp
+                if (!_isForceSubmitting)
+                {
+                    _isProcessingViolation = false;
+                    _antiCheatTimer?.Start();
+                    _lblMonitoringStatus.Text = "🔴 ĐANG GIÁM SÁT (CAM & MIC)";
+                    _lblMonitoringStatus.ForeColor = Color.Red;
+                }
             }
         }
 
@@ -434,13 +444,38 @@ namespace OmniSight.UI.Forms
                 SubmitExamAsync();
             }
         }
+        private void CleanupResources()
+        {
+            // Dừng tất cả timer trước
+            _timerCountdown?.Stop();
+            _antiCheatTimer?.Stop();
+            _cameraUiTimer?.Stop();
 
+            // Giải phóng dịch vụ giám sát
+            _antiCheatService?.StopMonitoring();
+
+            // QUAN TRỌNG: Tắt phần cứng Camera
+            if (_faceAiService != null)
+            {
+                _faceAiService.StopCamera();
+                // Đợi một chút để phần cứng kịp phản hồi
+                System.Threading.Thread.Sleep(100);
+            }
+
+            // Xóa ảnh trên PictureBox để đèn cam tắt hẳn
+            if (_picCameraFeed != null)
+            {
+                _picCameraFeed.Image?.Dispose();
+                _picCameraFeed.Image = null;
+            }
+        }
         private async void SubmitExamAsync()
         {
             try
             {
                 btnSubmit.Enabled = false;
                 _timerCountdown.Stop();
+                CleanupResources();
 
                 // Calculate score
                 int correctCount = 0;
@@ -484,6 +519,7 @@ namespace OmniSight.UI.Forms
 
         private void TimerCountdown_Tick(object sender, EventArgs e)
         {
+            if (_isForceSubmitting) return;
             _remainingSeconds--;
             int minutes = _remainingSeconds / 60;
             int seconds = _remainingSeconds % 60;
@@ -500,21 +536,27 @@ namespace OmniSight.UI.Forms
 
         private void FrmTakeExam_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // 1. Dừng các Timer (Dùng dấu ? để nếu chưa khởi tạo cũng không bị lỗi)
             _timerCountdown?.Stop();
-            _timerCountdown?.Dispose();
-
-            // Tắt các timer giám sát
-            _cameraUiTimer?.Stop();
-            _cameraUiTimer?.Dispose();
             _antiCheatTimer?.Stop();
-            _antiCheatTimer?.Dispose();
+            _cameraUiTimer?.Stop();
 
-            // Tắt service
+            // 2. Dừng dịch vụ giám sát
             _antiCheatService?.StopMonitoring();
-            _antiCheatService?.Dispose();
 
-            // Tắt phần cứng Camera
-            _faceAiService?.StopCamera();
+            // 3. Tắt phần cứng camera
+            if (_faceAiService != null)
+            {
+                _faceAiService.StopCamera();
+            }
+
+            // 4. GIẢI PHÓNG ẢNH (Đoạn này gây lỗi, đã được sửa an toàn)
+            if (_picCameraFeed != null && _picCameraFeed.Image != null)
+            {
+                var img = _picCameraFeed.Image;
+                _picCameraFeed.Image = null;
+                img.Dispose();
+            }
         }
         // Tạo đường dẫn file lưu nháp (Vd: C:\Users\Admin\AppData\Local\Temp\OmniSight_Exam_222.json)
         private string GetBackupFilePath()

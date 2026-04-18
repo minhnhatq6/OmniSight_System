@@ -36,17 +36,21 @@ namespace OmniSight.Services
         public async Task<List<Exam>> GetExamsByClassIdAsync(int classId)
         {
             return await _context.Exams
-                .Where(e => e.ClassId == classId)
+                .Include(e => e.Questions)
+                .Include(e => e.ExamResults)
+                .Where(e => e.ClassId == classId) // Lọc chính xác theo ID lớp học
                 .ToListAsync();
         }
 
         public async Task<List<Exam>> GetExamsForTeacherAsync(int teacherId)
         {
             return await _context.Exams
-          .Include(e => e.Questions)    // Tải kèm câu hỏi để đếm số lượng
-          .Include(e => e.ExamResults)  // Tải kèm kết quả để đếm số bài nộp
-          .Where(e => e.Class.TeacherId == teacherId) // Giả sử Class có TeacherId
-          .ToListAsync();
+                 // <--- THÊM DÒNG NÀY VÀO TẤT CẢ CÁC HÀM GET
+                .Include(e => e.Class)
+                .Include(e => e.Questions)
+                .Include(e => e.ExamResults)
+                .Where(e => e.Class.TeacherId == teacherId)
+                .ToListAsync();
         }
 
         public async Task<List<Exam>> GetExamsForStudentAsync(int studentId)
@@ -63,16 +67,35 @@ namespace OmniSight.Services
 
         public async Task<ExamResult> StartExamAsync(int examId, int studentId)
         {
-            var result = new ExamResult
-            {
-                ExamId = examId,
-                StudentId = studentId,
-                StartedAt = DateTime.Now
-            };
+            var existingResult = await _context.ExamResults.FirstOrDefaultAsync(r => r.ExamId == examId && r.StudentId == studentId);
 
-            _context.ExamResults.Add(result);
+            if (existingResult != null)
+            {
+                if (existingResult.RetakeStatus == "Approved")
+                {
+                    // NẾU ĐƯỢC DUYỆT: Xóa trắng điểm cũ, đáp án cũ, cho thi lại
+                    existingResult.Score = null;
+                    existingResult.AnswersData = null;
+                    existingResult.CompletedAt = null;
+                    existingResult.StartedAt = DateTime.Now;
+                    existingResult.RetakeStatus = "Retaken"; // Đánh dấu là đang làm lại
+
+                    // Tùy chọn: Xóa cả log vi phạm cũ
+                    var oldLogs = _context.ViolationLogs.Where(v => v.ResultId == existingResult.ResultId);
+                    _context.ViolationLogs.RemoveRange(oldLogs);
+
+                    await _context.SaveChangesAsync();
+                    return existingResult;
+                }
+
+                if (existingResult.CompletedAt != null) throw new Exception("Bạn đã nộp bài thi này rồi!");
+                return existingResult;
+            }
+
+            var newResult = new ExamResult { ExamId = examId, StudentId = studentId, StartedAt = DateTime.Now };
+            _context.ExamResults.Add(newResult);
             await _context.SaveChangesAsync();
-            return result;
+            return newResult;
         }
 
         public async Task<List<Question>> GetQuestionsByExamIdAsync(int examId)
@@ -89,11 +112,20 @@ namespace OmniSight.Services
             return examResult;
         }
 
-        public async Task<Exam> UpdateExamAsync(Exam exam)
+        public async Task UpdateExamAsync(Exam exam)
         {
+            // 1. Kiểm tra xem trong bộ nhớ đệm (Local) của EF có bản ghi nào trùng ID đang kẹt không
+            var trackedEntity = _context.Exams.Local.FirstOrDefault(e => e.ExamId == exam.ExamId);
+
+            if (trackedEntity != null)
+            {
+                // 2. Nếu có, lệnh cho EF ngừng theo dõi bản ghi cũ đó (Detach)
+                _context.Entry(trackedEntity).State = EntityState.Detached;
+            }
+
+            // 3. Bây giờ mới thực hiện cập nhật bản mới
             _context.Exams.Update(exam);
             await _context.SaveChangesAsync();
-            return exam;
         }
 
         public async Task DeleteExamAsync(int examId)
@@ -187,6 +219,27 @@ namespace OmniSight.Services
             return await _context.ExamResults
                 .Include(er => er.Student)
                 .FirstOrDefaultAsync(er => er.ResultId == resultId);
+        }
+        // 1. Hàm cho Học sinh xin làm lại
+        public async Task RequestRetakeAsync(int examId, int studentId)
+        {
+            var result = await _context.ExamResults.FirstOrDefaultAsync(e => e.ExamId == examId && e.StudentId == studentId);
+            if (result != null)
+            {
+                result.RetakeStatus = "Pending"; // Đặt trạng thái đang chờ duyệt
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        // 2. Hàm cho Giáo viên duyệt làm lại
+        public async Task ApproveRetakeAsync(int resultId, bool isApproved)
+        {
+            var result = await _context.ExamResults.FindAsync(resultId);
+            if (result != null)
+            {
+                result.RetakeStatus = isApproved ? "Approved" : "Rejected";
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

@@ -1,13 +1,14 @@
-﻿using System;
+﻿using MaterialSkin.Controls;
+using Microsoft.Extensions.DependencyInjection;
+using OmniSight.Core.Entities;
+using OmniSight.Services;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using MaterialSkin.Controls;
 using Xceed.Words.NET;
-using OmniSight.Services;
-using Microsoft.Extensions.DependencyInjection;
 namespace OmniSight.UI.Forms
 {
     public partial class UcClassDetail : UserControl
@@ -19,8 +20,10 @@ namespace OmniSight.UI.Forms
         private ExamService _examService;
         private readonly int _classId;
         private readonly int _currentUserId;
-
-        public UcClassDetail(StreamService streamService, ClassService classService, AuthService authService, int currentUserId, int classId)
+        private readonly bool _isTeacherOfThisClass;
+        private int? _editingAssignmentId = null;
+        private bool _isDataLoading = false; 
+        public UcClassDetail(StreamService streamService, ClassService classService, AuthService authService, int currentUserId, int classId, bool isTeacherOfThisClass)
         {
             InitializeComponent();
 
@@ -38,6 +41,11 @@ namespace OmniSight.UI.Forms
             _currentUserId = currentUserId;
             _classId = classId;
             this.VisibleChanged += UcClassDetail_VisibleChanged;
+            _isTeacherOfThisClass = isTeacherOfThisClass;
+            dtpDueDate.Format = DateTimePickerFormat.Custom;
+            dtpDueDate.CustomFormat = "dd/MM/yyyy HH:mm";
+           
+
         }
 
         // Setter cho AssignmentService (gọi từ MainForm)
@@ -59,61 +67,72 @@ namespace OmniSight.UI.Forms
 
         private async void UcClassDetail_VisibleChanged(object sender, EventArgs e)
         {
-            // Chỉ tải một lần duy nhất khi UserControl trở nên hiển thị
             if (this.Visible && !_streamLoaded)
             {
-                _streamLoaded = true;
-                await LoadStreamAsync();
-                await LoadAssignmentsAsync();
-                await LoadGradingAsync();
-                await LoadExamsAsync();
-                await LoadMembersAsync();
+                if (_isDataLoading) return; // Nếu đang load thì thôi
+
+                try
+                {
+                    _isDataLoading = true;
+                    _streamLoaded = true;
+
+                    // PHẢI dùng await từng cái một, không để chúng chạy song song
+                    await LoadStreamAsync();
+                    await LoadAssignmentsAsync();
+                    await LoadGradingAsync();
+                    await LoadExamsAsync();
+                    await LoadMembersAsync();
+                }
+                finally
+                {
+                    _isDataLoading = false;
+                }
             }
         }
 
         private async Task LoadExamsAsync()
         {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new MethodInvoker(async () => await LoadExamsAsync()));
-                return;
-            }
-
+            if (this.InvokeRequired) { /*...*/ return; }
             if (_examService == null || flpExams == null) return;
 
             try
             {
-                flpExams.Controls.Clear();
+                // === SỬA ĐOẠN NÀY ===
+                // Đảm bảo bật Panel cho Giáo viên và Tắt Panel cho Học sinh
+                if (panelExamTeacher != null)
+                {
+                    panelExamTeacher.Visible = _isTeacherOfThisClass;
 
+                    // Rất quan trọng: Đưa nó lên trên cùng (phòng trường hợp nó bị đè bởi flpExams)
+                    if (_isTeacherOfThisClass)
+                    {
+                        panelExamTeacher.BringToFront();
+                    }
+                }
+                // ====================
+
+                flpExams.Controls.Clear();
+                flpExams.Padding = new Padding(0, 70, 0, 0);
                 var user = _authService.CurrentUser;
                 if (user == null) return;
 
-                flpExams.Controls.Add(new Label { Text = "\uD83D\uDCD6 Đề thi", Font = new Font("Roboto", 14, FontStyle.Bold), AutoSize = true, Padding = new Padding(10), Margin = new Padding(5,5,5,15) });
+                // Tiêu đề
+                flpExams.Controls.Add(new Label { Text = "📖 Đề thi", Font = new Font("Roboto", 14, FontStyle.Bold), AutoSize = true, Padding = new Padding(10) });
 
-                List<OmniSight.Core.Entities.Exam> exams;
-                if (user.IsTeacher)
-                {
-                    exams = await _examService.GetExamsForTeacherAsync(user.UserId);
-                }
-                else
-                {
-                    exams = await _examService.GetExamsForStudentAsync(user.UserId);
-                }
+                // Chỉ lấy đề của LỚP NÀY
+                var exams = await _examService.GetExamsByClassIdAsync(_classId);
 
                 if (exams == null || exams.Count == 0)
                 {
-                    flpExams.Controls.Add(new Label { Text = "Chưa có đề thi.", AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(10) });
-                    flpExams.PerformLayout();
+                    flpExams.Controls.Add(new Label { Text = "Chưa có đề thi trong lớp này.", AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(10) });
                     return;
                 }
 
                 foreach (var exam in exams)
                 {
-                    var card = CreateExamCard(exam, user.IsTeacher);
+                    var card = CreateExamCard(exam, _isTeacherOfThisClass);
                     flpExams.Controls.Add(card);
                 }
-
-                flpExams.PerformLayout();
             }
             catch (Exception ex)
             {
@@ -125,74 +144,163 @@ namespace OmniSight.UI.Forms
         {
             Panel card = new Panel
             {
-                Width = flpExams.Width - 30,
+                // Lấy chiều rộng bằng Flp trừ đi một chút margin cho khỏi sát viền
+                Width = flpExams.Width > 50 ? flpExams.Width - 30 : 800,
                 AutoSize = false,
                 Padding = new Padding(15),
-                Margin = new Padding(5,5,5,15),
-                BackColor = Color.FromArgb(245,245,245),
+                Margin = new Padding(5, 5, 5, 15),
+                BackColor = Color.FromArgb(245, 245, 245),
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            Label lblTitle = new Label { Text = $"📚 {exam.Title}", Font = new Font("Roboto", 12, FontStyle.Bold), AutoSize = false, Location = new Point(10,10) };
+            // Đảm bảo khi Form to ra/nhỏ lại, card tự động co giãn theo
+            card.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            Label lblTitle = new Label
+            {
+                Text = $"📚 {exam.Title}",
+                Font = new Font("Roboto", 12, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(10, 10)
+            };
             card.Controls.Add(lblTitle);
+
             int currentY = lblTitle.Bottom + 10;
 
-            Label lblInfo = new Label { Text = $"Thời lượng: {exam.DurationMinutes} phút | Tạo: {exam.CreatedAt:dd/MM/yyyy}", Font = new Font("Roboto",9), ForeColor = Color.Gray, AutoSize = true, Location = new Point(10, currentY) };
+            Label lblInfo = new Label
+            {
+                Text = $"Thời lượng: {exam.DurationMinutes} phút | Tạo: {exam.CreatedAt:dd/MM/yyyy}",
+                Font = new Font("Roboto", 9),
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Location = new Point(10, currentY)
+            };
             card.Controls.Add(lblInfo);
-            currentY = lblInfo.Bottom + 10;
 
+            currentY = lblInfo.Bottom + 15;
+
+            // --- XỬ LÝ NÚT BẤM (CĂN LỀ PHẢI) ---
             if (isTeacher)
             {
-                Button btnManage = new Button { Text = "🔧 Quản lý", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(33,150,243), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-                btnManage.Click += async (s, e) => // Thêm async ở đây
+                Button btnManage = new Button
+                {
+                    Text = "🔧 Quản lý",
+                    AutoSize = false,
+                    Width = 100,
+                    Height = 35,
+                    BackColor = Color.FromArgb(33, 150, 243),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand,
+                    // Neo nút này vào bên Phải (Right) của Panel
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                // Đặt Location dựa trên chiều rộng hiện tại của card (trừ đi chiều rộng nút và margin 15)
+                btnManage.Location = new Point(card.Width - btnManage.Width - 15, 10);
+
+                btnManage.Click += async (s, e) =>
                 {
                     try
                     {
                         using (var frm = new FrmExamManagement(_examService, _classService, _currentUserId))
                         {
-                            // Kiểm tra nếu Form Quản lý đóng lại và báo có thay đổi (DialogResult.OK)
                             if (frm.ShowDialog(this.ParentForm) == DialogResult.OK)
                             {
-                                // Gọi hàm tải lại toàn bộ danh sách đề thi ở giao diện ngoài
                                 await LoadExamsAsync();
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Lỗi mở giao diện quản lý bài thi: " + ex.Message);
-                    }
+                    catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
                 };
                 card.Controls.Add(btnManage);
             }
-            else
+            else // Dành cho HỌC SINH
             {
-                Button btnTake = new Button { Text = "🚀 Làm thi", AutoSize = false, Width = 90, Height = 30, Location = new Point(card.Width - 200, 10), BackColor = Color.FromArgb(76,175,80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-                btnTake.Click += async (s, e) =>
-                {
-                    try
-                    {
-                        var result = await _examService.StartExamAsync(exam.ExamId, _currentUserId);
-                        var antiCheatService = Program.ServiceProvider.GetRequiredService<AntiCheatService>();
+                DateTime now = DateTime.Now;
+                bool isWaiting = exam.StartTime.HasValue && now < exam.StartTime.Value;
+                bool isExpired = exam.EndTime.HasValue && now > exam.EndTime.Value;
 
-                        using (var frm = new FrmTakeExam(exam, result, _examService, antiCheatService))
-                        {
-                            frm.ShowDialog(this.ParentForm); // Thêm ParentForm để Dialog hiển thị đúng
-                        }
-                        await LoadExamsAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Lỗi khi bắt đầu làm bài: " + ex.Message);
-                    }
+                var myResult = exam.ExamResults?.FirstOrDefault(r => r.StudentId == _currentUserId);
+
+                Button btnTake = new Button
+                {
+                    AutoSize = false,
+                    Width = 120, // Tăng độ rộng để chứa đủ chữ "Đang chờ duyệt"
+                    Height = 35,
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right // Neo lề phải
                 };
+                // Căn phải như nút Quản lý
+                btnTake.Location = new Point(card.Width - btnTake.Width - 15, 10);
+
+                if (isWaiting)
+                {
+                    btnTake.Text = "⏳ Chưa mở";
+                    btnTake.BackColor = Color.Gray; btnTake.ForeColor = Color.White;
+                    btnTake.Enabled = false;
+                }
+                else if (myResult != null && myResult.CompletedAt != null)
+                {
+                    if (myResult.RetakeStatus == "Pending")
+                    {
+                        btnTake.Text = "Đang chờ duyệt";
+                        btnTake.BackColor = Color.Orange; btnTake.ForeColor = Color.White;
+                        btnTake.Enabled = false;
+                    }
+                    else if (myResult.RetakeStatus == "Approved")
+                    {
+                        btnTake.Text = "🔄 Làm lại ngay";
+                        btnTake.BackColor = Color.Blue; btnTake.ForeColor = Color.White;
+                        btnTake.Click += async (s, e) => { await OpenTakeExamForm(exam); };
+                    }
+                    else
+                    {
+                        btnTake.Text = "✋ Xin làm lại";
+                        btnTake.BackColor = Color.Red; btnTake.ForeColor = Color.White;
+                        btnTake.Click += async (s, e) => {
+                            if (MessageBox.Show("Bạn có muốn gửi yêu cầu xin làm lại bài thi này cho giáo viên?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                            {
+                                await _examService.RequestRetakeAsync(exam.ExamId, _currentUserId);
+                                MessageBox.Show("Đã gửi yêu cầu, vui lòng chờ giáo viên duyệt!");
+                                await LoadExamsAsync();
+                            }
+                        };
+                    }
+                }
+                else if (isExpired)
+                {
+                    btnTake.Text = "🛑 Đã đóng";
+                    btnTake.BackColor = Color.DarkRed; btnTake.ForeColor = Color.White;
+                    btnTake.Enabled = false;
+                }
+                else
+                {
+                    btnTake.Text = "🚀 Vào thi";
+                    btnTake.BackColor = Color.FromArgb(76, 175, 80); btnTake.ForeColor = Color.White;
+                    btnTake.Click += async (s, e) => { await OpenTakeExamForm(exam); };
+                }
+
                 card.Controls.Add(btnTake);
             }
 
-            card.Height = currentY + 10;
+            card.Height = currentY;
             return card;
         }
-
+        private async Task OpenTakeExamForm(Exam exam)
+        {
+            try
+            {
+                var result = await _examService.StartExamAsync(exam.ExamId, _currentUserId);
+                var antiCheatService = Program.ServiceProvider.GetRequiredService<AntiCheatService>();
+                using (var frm = new FrmTakeExam(exam, result, _examService, antiCheatService))
+                {
+                    frm.ShowDialog(this.ParentForm);
+                }
+                await LoadExamsAsync();
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
         private async Task LoadStreamAsync()
         {
             // Đảm bảo không bị lỗi Cross-thread nếu hàm này bị gọi từ luồng khác
@@ -283,12 +391,23 @@ namespace OmniSight.UI.Forms
                 var user = _authService.CurrentUser;
                 if (user == null) return;
 
+                // --- BƯỚC 1: QUAN TRỌNG - PHÂN QUYỀN TRƯỚC ---
+                // Phải ẩn/hiện bảng giao bài ngay lập tức cho dù có bài tập hay không
+                if (_isTeacherOfThisClass)
+                {
+                    ConfigureTeacherAssignmentUI(); // Hiện bảng giao bài
+                }
+                else
+                {
+                    ConfigureStudentAssignmentUI(); // Ẩn bảng giao bài
+                }
+
+                // Sau đó mới đi lấy dữ liệu từ Database
                 var assignments = await _assignmentService.GetAssignmentsByClassIdAsync(_classId);
 
                 flpAssignments.Controls.Clear();
-                flpGrading.FlowDirection = FlowDirection.TopDown; // Xếp từ trên xuống
-                flpGrading.WrapContents = false; // Không cho phép tràn sang hàng ngang
 
+                // --- BƯỚC 2: KIỂM TRA TRỐNG SAU ---
                 if (assignments == null || assignments.Count == 0)
                 {
                     flpAssignments.Controls.Add(new Label
@@ -298,23 +417,13 @@ namespace OmniSight.UI.Forms
                         Padding = new Padding(10),
                         ForeColor = Color.Gray
                     });
-                    return;
+                    return; // Thoát ở đây là an toàn vì panel đã được ẩn ở Bước 1 rồi
                 }
 
-                // Nếu là giáo viên, cho phép tạo bài tập
-                if (user.IsTeacher)
-                {
-                    ConfigureTeacherAssignmentUI();
-                }
-                else
-                {
-                    ConfigureStudentAssignmentUI();
-                }
-
-                // Hiển thị danh sách bài tập
+                // Hiển thị danh sách bài tập (giữ nguyên code cũ)
                 foreach (var assignment in assignments)
                 {
-                    var assignmentCard = CreateAssignmentCard(assignment, user.IsTeacher);
+                    var assignmentCard = CreateAssignmentCard(assignment, _isTeacherOfThisClass);
                     flpAssignments.Controls.Add(assignmentCard);
                 }
 
@@ -363,7 +472,7 @@ namespace OmniSight.UI.Forms
                 flpGrading.FlowDirection = FlowDirection.TopDown; // Xếp từ trên xuống
                 flpGrading.WrapContents = false; // Không cho phép tràn sang hàng ngang
 
-                if (user.IsTeacher)
+                if (_isTeacherOfThisClass)
                 {
                     // View cho giáo viên: chấm điểm
                     flpGrading.Controls.Add(lblGradingTitle);
@@ -895,7 +1004,7 @@ namespace OmniSight.UI.Forms
             };
 
             // Hạn chót
-            string dueText = assignment.DueDate.HasValue ? $"Hạn chót: {assignment.DueDate:dd/MM/yyyy}" : "Không có hạn chót";
+            string dueText = assignment.DueDate.HasValue ? $"Hạn chót: {assignment.DueDate:dd/MM/yyyy HH:mm}" : "Không có hạn chót";
             Label lblDueDate = new Label
             {
                 Text = dueText,
@@ -905,7 +1014,8 @@ namespace OmniSight.UI.Forms
                 Location = new Point(10, lblDescription.Bottom + 10)
             };
 
-            int controlHeight = lblDueDate.Bottom + 15;
+            // Biến lưu trữ tọa độ Y hiện tại để vẽ tiếp các nút bấm
+            int currentY = lblDueDate.Bottom + 15;
 
             // Nếu có link tài nguyên, thêm nút mở
             if (!string.IsNullOrEmpty(assignment.AttachmentUrl))
@@ -916,7 +1026,7 @@ namespace OmniSight.UI.Forms
                     AutoSize = false,
                     Width = 120,
                     Height = 30,
-                    Location = new Point(10, controlHeight),
+                    Location = new Point(10, currentY),
                     BackColor = Color.FromArgb(33, 150, 243),
                     ForeColor = Color.White,
                     Font = new Font("Roboto", 9, FontStyle.Regular),
@@ -925,12 +1035,32 @@ namespace OmniSight.UI.Forms
                 };
                 btnOpenLink.Click += (sender, e) => OpenLink(assignment.AttachmentUrl);
                 card.Controls.Add(btnOpenLink);
-                controlHeight += 40;
+                currentY += 40; // Tăng Y để nút dưới không đè lên
             }
 
-            // Nếu là giáo viên, thêm nút xoá
+            // Nếu là giáo viên, thêm nút xoá / sửa
             if (isTeacher)
             {
+                Button btnEdit = new Button
+                {
+                    Text = "✏️ Sửa",
+                    Width = 70,
+                    Height = 30,
+                    Location = new Point(card.Width - 180, lblDueDate.Top),
+                    BackColor = Color.FromArgb(255, 193, 7), // Màu vàng
+                    FlatStyle = FlatStyle.Flat
+                };
+                btnEdit.Click += (s, e) => {
+                    _editingAssignmentId = assignment.AssignmentId;
+                    txtAssignmentName.Text = assignment.Title;
+                    txtAssignmentDescription.Text = assignment.Description;
+                    txtDriveLink.Text = assignment.AttachmentUrl;
+                    if (assignment.DueDate.HasValue) dtpDueDate.Value = assignment.DueDate.Value;
+                    btnActionAssignment.Text = "LƯU THAY ĐỔI";
+                    txtAssignmentName.Focus();
+                };
+                card.Controls.Add(btnEdit);
+
                 Button btnDelete = new Button
                 {
                     Text = "🗑️ Xoá",
@@ -947,34 +1077,86 @@ namespace OmniSight.UI.Forms
                 btnDelete.Click += async (sender, e) => await DeleteAssignment(assignment.AssignmentId);
                 card.Controls.Add(btnDelete);
             }
-            else
+            else // NHÁNH DÀNH CHO HỌC SINH
             {
-                // Học sinh có thể nộp bài
-                Button btnSubmit = new Button
+                var mySubmission = assignment.Submissions?.FirstOrDefault(s => s.StudentId == _currentUserId);
+
+                if (mySubmission != null)
                 {
-                    Text = "📤 Nộp bài",
-                    AutoSize = false,
-                    Width = 100,
-                    Height = 30,
-                    Location = new Point(10, controlHeight),
-                    BackColor = Color.FromArgb(76, 175, 80),
-                    ForeColor = Color.White,
-                    Font = new Font("Roboto", 9, FontStyle.Regular),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnSubmit.Click += (sender, e) => SubmitAssignment(assignment.AssignmentId);
-                card.Controls.Add(btnSubmit);
-                controlHeight += 40;
+                    // ĐÃ NỘP BÀI
+                    Label lblStatus = new Label
+                    {
+                        Text = $"✅ Đã nộp: {mySubmission.SubmittedAt:dd/MM HH:mm}",
+                        ForeColor = Color.Green,
+                        Font = new Font("Roboto", 9, FontStyle.Bold),
+                        AutoSize = true,
+                        Location = new Point(10, currentY)
+                    };
+                    card.Controls.Add(lblStatus);
+
+                    Button btnResubmit = new Button
+                    {
+                        Text = "Nộp lại",
+                        Size = new Size(80, 25),
+                        Location = new Point(card.Width - 100, currentY - 5),
+                        BackColor = Color.LightSalmon,
+                        FlatStyle = FlatStyle.Flat,
+                        Cursor = Cursors.Hand
+                    };
+                    btnResubmit.Click += (s, e) => SubmitAssignment(assignment.AssignmentId);
+                    card.Controls.Add(btnResubmit);
+
+                    currentY += 35; // Cộng thêm chiều cao cho khung
+                }
+                else
+                {
+                    // CHƯA NỘP BÀI
+                    if (assignment.DueDate.HasValue && DateTime.Now > assignment.DueDate.Value)
+                    {
+                        // QUÁ HẠN
+                        Label lblExpired = new Label
+                        {
+                            Text = "🔴 Đã hết hạn nộp bài",
+                            ForeColor = Color.Red,
+                            AutoSize = true,
+                            Location = new Point(10, currentY)
+                        };
+                        card.Controls.Add(lblExpired);
+                        currentY += 30; // Cộng thêm chiều cao
+                    }
+                    else
+                    {
+                        // CÒN HẠN -> HIỆN NÚT NỘP BÀI
+                        Button btnSubmit = new Button
+                        {
+                            Text = "📤 NỘP BÀI",
+                            Width = 120,
+                            Height = 35,
+                            Location = new Point(10, currentY),
+                            BackColor = Color.FromArgb(76, 175, 80),
+                            ForeColor = Color.White,
+                            FlatStyle = FlatStyle.Flat,
+                            Cursor = Cursors.Hand
+                        };
+                        btnSubmit.Click += (s, e) => SubmitAssignment(assignment.AssignmentId);
+                        card.Controls.Add(btnSubmit);
+
+                        currentY += 45; // ĐÂY LÀ DÒNG QUAN TRỌNG ĐỂ NÚT KHÔNG BỊ CHE MẤT
+                    }
+                }
             }
 
             card.Controls.Add(lblTitle);
             card.Controls.Add(lblDescription);
             card.Controls.Add(lblDueDate);
-            card.Height = controlHeight;
+
+            // Gán chiều cao cuối cùng cho khung card
+            card.Height = currentY + 10;
 
             return card;
         }
+
+        
 
         private void OpenLink(string url)
         {
@@ -1013,20 +1195,24 @@ namespace OmniSight.UI.Forms
 
         private void SubmitAssignment(int assignmentId)
         {
-            // Mở dialog nhập link nộp bài
             string submissionLink = PromptForSubmission();
-            if (!string.IsNullOrEmpty(submissionLink))
-            {
-                SubmitAssignmentAsync(assignmentId, submissionLink);
-            }
+
+            // Kiểm tra nếu người dùng không nhập gì hoặc bấm Hủy
+            if (string.IsNullOrWhiteSpace(submissionLink)) return;
+
+            SubmitAssignmentAsync(assignmentId, submissionLink);
         }
 
         private async void SubmitAssignmentAsync(int assignmentId, string fileOrLinkUrl)
         {
             try
             {
+                // Gọi Service lưu vào Database
                 await _assignmentService.SubmitAssignmentAsync(assignmentId, _currentUserId, fileOrLinkUrl);
-                MessageBox.Show("Nộp bài thành công!");
+
+                MessageBox.Show("Nộp bài thành công!", "Thông báo");
+
+                // QUAN TRỌNG: Tải lại danh sách để cập nhật trạng thái "Đã nộp" trên màn hình
                 await LoadAssignmentsAsync();
             }
             catch (Exception ex)
@@ -1041,59 +1227,87 @@ namespace OmniSight.UI.Forms
             Form prompt = new Form()
             {
                 Text = "Nộp bài tập",
-                Width = 400,
-                Height = 150,
-                StartPosition = FormStartPosition.CenterParent,
+                Width = 450,
+                Height = 200,
+                StartPosition = FormStartPosition.CenterParent, // Sẽ nằm giữa MainForm
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
-                MinimizeBox = false
+                MinimizeBox = false,
+                BackColor = Color.White
             };
 
-            Label label = new Label() { Left = 20, Top = 20, Text = "Nhập link Google Drive (hoặc URL):", Width = 350 };
-            TextBox textBox = new TextBox() { Left = 20, Top = 50, Width = 350 };
-            Button okButton = new Button() { Text = "OK", Left = 200, Width = 80, Top = 90, DialogResult = DialogResult.OK };
-            Button cancelButton = new Button() { Text = "Hủy", Left = 290, Width = 80, Top = 90, DialogResult = DialogResult.Cancel };
+            Label label = new Label() { Left = 20, Top = 20, Text = "Dán link bài làm (Google Drive/URL):", Width = 350, Font = new Font("Roboto", 10) };
+            TextBox textBox = new TextBox() { Left = 20, Top = 50, Width = 390, Font = new Font("Roboto", 10) };
 
-            prompt.Controls.Add(label);
-            prompt.Controls.Add(textBox);
-            prompt.Controls.Add(okButton);
-            prompt.Controls.Add(cancelButton);
+            Button okButton = new Button()
+            {
+                Text = "NỘP BÀI",
+                Left = 220,
+                Width = 100,
+                Top = 100,
+                Height = 40,
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DialogResult = DialogResult.OK
+            };
+
+            Button cancelButton = new Button()
+            {
+                Text = "HỦY",
+                Left = 330,
+                Width = 80,
+                Top = 100,
+                Height = 40,
+                DialogResult = DialogResult.Cancel
+            };
+
+            prompt.Controls.AddRange(new Control[] { label, textBox, okButton, cancelButton });
             prompt.AcceptButton = okButton;
-            prompt.CancelButton = cancelButton;
 
-            return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : null;
+            // QUAN TRỌNG: Truyền 'this' vào ShowDialog để nó bắt đúng Parent
+            return prompt.ShowDialog(this) == DialogResult.OK ? textBox.Text.Trim() : null;
         }
 
         private async void btnActionAssignment_Click(object sender, EventArgs e)
         {
-            var user = _authService.CurrentUser;
-            if (user == null || !user.IsTeacher) return;
+            if (!_isTeacherOfThisClass) return;
 
             string title = txtAssignmentName.Text.Trim();
-            string description = txtAssignmentDescription.Text.Trim();
-            string attachmentUrl = txtDriveLink.Text.Trim();
-            DateTime? dueDate = dtpDueDate.Checked ? (DateTime?)dtpDueDate.Value : null;
-
             if (string.IsNullOrEmpty(title))
             {
-                MessageBox.Show("Vui lòng nhập tên bài tập!");
-                return;
+                MessageBox.Show("Vui lòng nhập tên bài tập!"); return;
             }
 
             try
             {
-                await _assignmentService.CreateAssignmentAsync(_classId, _currentUserId, title, description, attachmentUrl, dueDate);
-                MessageBox.Show("Thêm bài tập thành công!");
+                DateTime? dueDate = dtpDueDate.Value;
+
+                if (_editingAssignmentId == null)
+                {
+                    // CHẾ ĐỘ THÊM MỚI
+                    await _assignmentService.CreateAssignmentAsync(_classId, _currentUserId, title,
+                        txtAssignmentDescription.Text, txtDriveLink.Text, dueDate);
+                    MessageBox.Show("Thêm bài tập thành công!");
+                }
+                else
+                {
+                    // CHẾ ĐỘ CẬP NHẬT (Bạn cần thêm hàm Update này vào AssignmentService)
+                    await _assignmentService.UpdateAssignmentAsync(_editingAssignmentId.Value, title,
+                        txtAssignmentDescription.Text, txtDriveLink.Text, dueDate);
+                    MessageBox.Show("Cập nhật bài tập thành công!");
+                }
+
+                // Reset form
+                _editingAssignmentId = null;
+                btnActionAssignment.Text = "THÊM BÀI TẬP";
                 txtAssignmentName.Clear();
                 txtAssignmentDescription.Clear();
                 txtDriveLink.Clear();
-                dtpDueDate.Checked = false;
-                await LoadAssignmentsAsync();
+
+                await LoadAssignmentsAsync(); // Tải lại danh sách
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi thêm bài tập: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
         }
 
         private async Task LoadMembersAsync()
@@ -1332,6 +1546,26 @@ namespace OmniSight.UI.Forms
                 }
 
                 return (null, 0);
+            }
+        }
+        private async void btnManageExams_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Sử dụng các Service đã được tiêm (Inject) vào UcClassDetail từ trước
+                using (var frm = new FrmExamManagement(_examService, _classService, _currentUserId))
+                {
+                    // Mở form dưới dạng Dialog
+                    if (frm.ShowDialog(this.ParentForm) == DialogResult.OK)
+                    {
+                        // Nếu trong lúc quản lý có Xóa/Sửa đề, khi đóng lại sẽ load lại danh sách ở ngoài
+                        await LoadExamsAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi mở trình quản lý: " + ex.Message);
             }
         }
     }

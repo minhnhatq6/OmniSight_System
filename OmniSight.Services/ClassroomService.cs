@@ -17,7 +17,6 @@ namespace OmniSight.Services
             _context = context;
         }
 
-        // Hàm sinh mã Join Code ngẫu nhiên 6 ký tự
         public string GenerateJoinCode()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -26,27 +25,28 @@ namespace OmniSight.Services
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
-        // --- HÀM MỚI: TÌM HOẶC TẠO MÔN HỌC ---
-        public async Task<Subject> GetOrCreateSubjectAsync(string subjectName)
+        // --- HÀM ĐÃ SỬA: TÌM HOẶC TẠO MÔN HỌC RIÊNG CHO GV ---
+        public async Task<Subject> GetOrCreateSubjectAsync(string subjectName, int teacherId)
         {
-            // Kiểm tra xem tên môn học đã tồn tại chưa (không phân biệt hoa thường)
+            // Tìm môn trùng tên thuộc về GV này HOẶC là môn dùng chung (null)
             var existingSubject = await _context.Subjects
-                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == subjectName.ToLower());
+                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == subjectName.ToLower()
+                                       && (s.TeacherId == teacherId || s.TeacherId == null));
 
-            if (existingSubject != null)
+            if (existingSubject != null) return existingSubject;
+
+            // Nếu chưa có thì tạo mới môn học GẮN VỚI ID GIÁO VIÊN
+            var newSubject = new Subject
             {
-                return existingSubject; // Nếu có rồi thì trả về luôn
-            }
-
-            // Nếu chưa có thì tạo mới
-            var newSubject = new Subject { SubjectName = subjectName };
+                SubjectName = subjectName,
+                TeacherId = teacherId
+            };
             _context.Subjects.Add(newSubject);
             await _context.SaveChangesAsync();
 
             return newSubject;
         }
 
-        // 1. Chức năng Giáo viên Tạo lớp
         public async Task<Class> CreateClassAsync(string className, int teacherId, int subjectId)
         {
             var newClass = new Class
@@ -59,29 +59,32 @@ namespace OmniSight.Services
 
             _context.Classes.Add(newClass);
             await _context.SaveChangesAsync();
-
             return newClass;
         }
 
-        // Lấy danh sách cho Giáo viên (Thấy được Join Code)
         public async Task<List<Class>> GetOwnedClassesAsync(int teacherId)
         {
             return await _context.Classes
+                .Include(c => c.Subject)
                 .Where(c => c.TeacherId == teacherId)
                 .ToListAsync();
         }
 
-        public async Task<List<Subject>> GetSubjectsAsync()
+        // --- HÀM ĐÃ SỬA: LẤY MÔN HỌC THEO GIÁO VIÊN ---
+        public async Task<List<Subject>> GetSubjectsByTeacherAsync(int teacherId)
         {
-            return await _context.Subjects.ToListAsync();
+            return await _context.Subjects
+                .Where(s => s.TeacherId == null || s.TeacherId == teacherId)
+                .OrderBy(s => s.SubjectName)
+                .ToListAsync();
         }
 
-        // Lấy danh sách cho Sinh viên (KHÔNG lấy Join Code - Bảo mật)
         public async Task<List<Class>> GetJoinedClassesAsync(int studentId)
         {
-            return await _context.ClassMembers
-                .Where(m => m.StudentId == studentId)
-                .Select(m => m.Class)
+            return await _context.Classes
+                .Include(c => c.Subject)
+                .AsNoTracking()
+                .Where(c => c.ClassMembers.Any(cm => cm.StudentId == studentId))
                 .ToListAsync();
         }
 
@@ -99,7 +102,6 @@ namespace OmniSight.Services
             return cls?.ClassName ?? "N/A";
         }
 
-        // 2. Chức năng Học sinh Tham gia lớp
         public async Task<bool> JoinClassAsync(string joinCode, int studentId)
         {
             var targetClass = await _context.Classes.FirstOrDefaultAsync(c => c.JoinCode == joinCode);
@@ -119,6 +121,11 @@ namespace OmniSight.Services
             _context.ClassMembers.Add(member);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> IsTeacherOfClassAsync(int classId, int userId)
+        {
+            return await _context.Classes.AnyAsync(c => c.ClassId == classId && c.TeacherId == userId);
         }
     }
 }

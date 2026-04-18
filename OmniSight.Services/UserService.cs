@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using OmniSight.Core.Entities;
 using OmniSight.Data;
 
 namespace OmniSight.Services
@@ -26,9 +27,12 @@ namespace OmniSight.Services
             user.IsTeacher = isTeacher;
 
             _db.Users.Update(user);
-            await _db.SaveChangesAsync();
-
-            return true;
+            // Sửa dòng này: Thay _context bằng _db và chỉ giữ 1 dòng SaveChanges
+            return await _db.SaveChangesAsync() > 0;
+        }
+        public async Task<User> GetUserByIdAsync(int userId)
+        {
+            return await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
         }
         public async Task<bool> UpdateFaceEmbeddingAsync(int userId, string embedding)
         {

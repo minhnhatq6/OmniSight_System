@@ -4,15 +4,17 @@ using MaterialSkin.Controls;
 using OmniSight.Services;
 using System;
 using System.Windows.Forms;
-
+using OmniSight.Core.Entities;
+using System.Globalization;
 namespace OmniSight.UI.Forms.Auth
 {
     public partial class FrmFaceLogin : MaterialForm
     {
+        private bool _isProcessing = false;
         private readonly FaceAiService _faceAiService;
         private readonly AuthService _authService;
         private System.Windows.Forms.Timer _scanTimer;
-
+        public List<User> MatchedUsers { get; set; } = new List<User>();
         public FrmFaceLogin(FaceAiService faceAiService, AuthService authService)
         {
             InitializeComponent();
@@ -54,25 +56,38 @@ namespace OmniSight.UI.Forms.Auth
 
         private async void ScanTimer_Tick(object? sender, EventArgs e)
         {
+            if (_isProcessing) return;
+
             using (var frame = _faceAiService.GetFrame())
             {
                 if (frame == null || frame.IsEmpty) return;
-
                 picFace.Image = frame.ToBitmap();
 
-                // Trích xuất vector từ camera
                 var embedding = _faceAiService.ExtractEmbedding(frame);
                 if (embedding != null)
                 {
-                    // So khớp với Database
-                    var result = await _authService.LoginWithFaceAsync(embedding);
-                    if (result.success)
+                    try
                     {
-                        _scanTimer.Stop();
-                        _faceAiService.StopCamera();
-                        this.DialogResult = DialogResult.OK; // Báo thành công
-                        this.Close();
+                        _isProcessing = true;
+
+                        // --- THAY ĐỔI QUAN TRỌNG TẠI ĐÂY ---
+                        // Không gọi LoginWithFaceAsync nữa, mà gọi FindMatchingUsersAsync
+                        var matches = await _authService.FindMatchingUsersAsync(embedding);
+
+                        if (matches != null && matches.Count > 0)
+                        {
+                            _scanTimer.Stop();
+                            _faceAiService.StopCamera();
+
+                            // Lưu danh sách vào biến MatchedUsers để FrmLogin sử dụng
+                            this.MatchedUsers = matches;
+
+                            this.DialogResult = DialogResult.OK; // Báo cho FrmLogin là đã tìm thấy người
+                            this.Close();
+                        }
                     }
+                    catch (Exception ex) { /* Log lỗi */ }
+                    finally { _isProcessing = false; }
                 }
             }
         }
