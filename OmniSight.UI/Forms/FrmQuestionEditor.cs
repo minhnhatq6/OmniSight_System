@@ -1,25 +1,30 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using MaterialSkin;
 using MaterialSkin.Controls;
 using OmniSight.Core.Entities;
 using OmniSight.Services;
 
 namespace OmniSight.UI.Forms
 {
-    public partial class FrmQuestionEditor : Form
+    // 1. Đổi kế thừa từ Form sang MaterialForm
+    public partial class FrmQuestionEditor : MaterialForm
     {
         private readonly ExamService _examService;
         private readonly int _examId;
         private int? _questionId;
         private Question _question;
 
-        private MaterialTextBox txtContent;
+        // Đổi txtContent thành dạng gõ nhiều dòng (vì câu hỏi thường khá dài)
+        private MaterialMultiLineTextBox2 txtContent;
         private MaterialTextBox txtOptionA;
         private MaterialTextBox txtOptionB;
         private MaterialTextBox txtOptionC;
         private MaterialTextBox txtOptionD;
-        private ComboBox cbCorrectOption;
+
+        // Đổi ComboBox thường thành MaterialComboBox cho đồng bộ giao diện
+        private MaterialComboBox cbCorrectOption;
         private MaterialButton btnSave;
         private MaterialButton btnCancel;
 
@@ -29,64 +34,76 @@ namespace OmniSight.UI.Forms
             _examId = examId;
             _questionId = questionId;
             InitializeComponent();
+
+            // 2. Thêm Form này vào trình quản lý giao diện để nó tự động "ăn" theo màu sắc và Dark Mode của MainForm
+            var materialSkinManager = MaterialSkinManager.Instance;
+            materialSkinManager.AddFormToManage(this);
         }
 
         private void InitializeComponent()
         {
-            this.Text = _questionId.HasValue ? "Sửa Câu Hỏi" : "Thêm Câu Hỏi";
+            this.Text = _questionId.HasValue ? "SỬA CÂU HỎI" : "THÊM CÂU HỎI MỚI";
             this.Width = 600;
-            this.Height = 500;
+            this.Height = 650; // Tăng chiều cao lên một chút cho thoáng
             this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = System.Drawing.Color.White;
+            this.Sizable = false; // Tắt tính năng kéo dãn form
+            this.MaximizeBox = false;
 
-            var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(15), AutoScroll = true };
-
+            // 3. Tọa độ Y bắt đầu từ 80 để tránh bị thanh tiêu đề (Title bar) che mất
             // Content
-            var lblContent = new MaterialLabel { Text = "Nội Dung Câu Hỏi:", Location = new System.Drawing.Point(0, 0), AutoSize = true };
-            txtContent = new MaterialTextBox { Location = new System.Drawing.Point(0, 30), Width = 550, Hint = "Nhập nội dung câu hỏi" };
+            txtContent = new MaterialMultiLineTextBox2
+            {
+                Location = new System.Drawing.Point(20, 80),
+                Width = 560,
+                Height = 100,
+                Hint = "Nhập nội dung câu hỏi..."
+            };
 
-            // Options
-            var lblOptionA = new MaterialLabel { Text = "Đáp án A:", Location = new System.Drawing.Point(0, 90), AutoSize = true };
-            txtOptionA = new MaterialTextBox { Location = new System.Drawing.Point(0, 120), Width = 550, Hint = "Nhập đáp án A" };
-
-            var lblOptionB = new MaterialLabel { Text = "Đáp án B:", Location = new System.Drawing.Point(0, 180), AutoSize = true };
-            txtOptionB = new MaterialTextBox { Location = new System.Drawing.Point(0, 210), Width = 550, Hint = "Nhập đáp án B" };
-
-            var lblOptionC = new MaterialLabel { Text = "Đáp án C:", Location = new System.Drawing.Point(0, 270), AutoSize = true };
-            txtOptionC = new MaterialTextBox { Location = new System.Drawing.Point(0, 300), Width = 550, Hint = "Nhập đáp án C" };
-
-            var lblOptionD = new MaterialLabel { Text = "Đáp án D:", Location = new System.Drawing.Point(0, 360), AutoSize = true };
-            txtOptionD = new MaterialTextBox { Location = new System.Drawing.Point(0, 390), Width = 550, Hint = "Nhập đáp án D" };
+            // Options (Lồng luôn nhãn A, B, C, D vào Hint cho gọn gàng)
+            txtOptionA = new MaterialTextBox { Location = new System.Drawing.Point(20, 200), Width = 560, Hint = "A. Nhập đáp án A" };
+            txtOptionB = new MaterialTextBox { Location = new System.Drawing.Point(20, 260), Width = 560, Hint = "B. Nhập đáp án B" };
+            txtOptionC = new MaterialTextBox { Location = new System.Drawing.Point(20, 320), Width = 560, Hint = "C. Nhập đáp án C" };
+            txtOptionD = new MaterialTextBox { Location = new System.Drawing.Point(20, 380), Width = 560, Hint = "D. Nhập đáp án D" };
 
             // Correct Option
-            var lblCorrectOption = new MaterialLabel { Text = "Đáp Án Đúng:", Location = new System.Drawing.Point(0, 450), AutoSize = true };
-            cbCorrectOption = new ComboBox 
-            { 
-                Location = new System.Drawing.Point(0, 480), 
-                Width = 100, 
-                DropDownStyle = ComboBoxStyle.DropDownList 
+            var lblCorrectOption = new MaterialLabel { Text = "Đáp Án Đúng:", Location = new System.Drawing.Point(20, 460), AutoSize = true };
+            cbCorrectOption = new MaterialComboBox
+            {
+                Location = new System.Drawing.Point(150, 445),
+                Width = 150,
+                DropDownStyle = ComboBoxStyle.DropDownList
             };
             cbCorrectOption.Items.AddRange(new object[] { "A", "B", "C", "D" });
             cbCorrectOption.SelectedIndex = 0;
 
             // Buttons
-            btnSave = new MaterialButton { Text = "💾 Lưu", Location = new System.Drawing.Point(0, 520), Width = 100 };
+            btnSave = new MaterialButton
+            {
+                Text = "💾 LƯU CÂU HỎI",
+                Location = new System.Drawing.Point(20, 530),
+                AutoSize = true,
+                UseAccentColor = true, // Dùng màu nhấn cho nổi bật
+                Type = MaterialButton.MaterialButtonType.Contained
+            };
             btnSave.Click += BtnSave_Click;
-            btnCancel = new MaterialButton { Text = "❌ Hủy", Location = new System.Drawing.Point(110, 520), Width = 100 };
+
+            btnCancel = new MaterialButton
+            {
+                Text = "❌ HỦY",
+                Location = new System.Drawing.Point(180, 530),
+                AutoSize = true,
+                Type = MaterialButton.MaterialButtonType.Outlined // Nút hủy để dạng viền cho đỡ vướng mắt
+            };
             btnCancel.Click += (s, e) => this.Close();
 
-            panel.Controls.AddRange(new Control[] 
-            { 
-                lblContent, txtContent,
-                lblOptionA, txtOptionA,
-                lblOptionB, txtOptionB,
-                lblOptionC, txtOptionC,
-                lblOptionD, txtOptionD,
+            // Đưa tất cả control thẳng vào form
+            this.Controls.AddRange(new Control[]
+            {
+                txtContent,
+                txtOptionA, txtOptionB, txtOptionC, txtOptionD,
                 lblCorrectOption, cbCorrectOption,
                 btnSave, btnCancel
             });
-
-            this.Controls.Add(panel);
 
             if (_questionId.HasValue)
             {

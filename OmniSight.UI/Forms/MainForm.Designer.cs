@@ -34,21 +34,23 @@
             btnStartCamera = new MaterialSkin.Controls.MaterialButton();
             btnCaptureFace = new MaterialSkin.Controls.MaterialButton();
             btnSaveProfile = new MaterialSkin.Controls.MaterialButton();
-            switchTeacher = new MaterialSkin.Controls.MaterialSwitch();
-            switchStudent = new MaterialSkin.Controls.MaterialSwitch();
             txtPhone = new MaterialSkin.Controls.MaterialTextBox();
             txtFullName = new MaterialSkin.Controls.MaterialTextBox();
             tabSettings = new TabPage();
+            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
             imageList1 = new ImageList(components);
             cmsUserMenu = new MaterialSkin.Controls.MaterialContextMenuStrip();
             tsmLogout = new ToolStripMenuItem();
             btnUserAccount = new MaterialSkin.Controls.MaterialButton();
             timerCamera = new System.Windows.Forms.Timer(components);
+            switchTeacher = new MaterialSkin.Controls.MaterialSwitch();
+            switchStudent = new MaterialSkin.Controls.MaterialSwitch();
             materialTabControl1.SuspendLayout();
             tabHome.SuspendLayout();
             tabClasses.SuspendLayout();
             tabProfile.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picCamera).BeginInit();
+            tabSettings.SuspendLayout();
             cmsUserMenu.SuspendLayout();
             SuspendLayout();
             // 
@@ -67,7 +69,7 @@
             materialTabControl1.Multiline = true;
             materialTabControl1.Name = "materialTabControl1";
             materialTabControl1.SelectedIndex = 0;
-            materialTabControl1.Size = new Size(869, 400);
+            materialTabControl1.Size = new Size(1274, 670);
             materialTabControl1.TabIndex = 0;
             // 
             // tabHome
@@ -78,7 +80,7 @@
             tabHome.Margin = new Padding(3, 2, 3, 2);
             tabHome.Name = "tabHome";
             tabHome.Padding = new Padding(3, 2, 3, 2);
-            tabHome.Size = new Size(861, 365);
+            tabHome.Size = new Size(1266, 635);
             tabHome.TabIndex = 0;
             tabHome.Text = "Trang chủ";
             tabHome.UseVisualStyleBackColor = true;
@@ -97,56 +99,81 @@
             // 
             // tabClasses
             // 
-            tabClasses.Controls.Add(btnOpenJoinClass);
-            tabClasses.Controls.Add(lvwClasses);
-            tabClasses.Controls.Add(btnOpenCreateClass);
+            tabClasses.BackColor = Color.White;
             tabClasses.ImageKey = "Class";
             tabClasses.Location = new Point(4, 31);
             tabClasses.Margin = new Padding(3, 2, 3, 2);
             tabClasses.Name = "tabClasses";
-            tabClasses.Padding = new Padding(15);
-            tabClasses.Size = new Size(861, 365);
+            tabClasses.Padding = new Padding(20); // Tạo lề 20px cho rộng rãi
+            tabClasses.Size = new Size(1266, 635);
             tabClasses.TabIndex = 1;
             tabClasses.Text = "Lớp học của tôi";
-            tabClasses.UseVisualStyleBackColor = true;
+
+            // TẠO THANH CÔNG CỤ (CHỨA TIÊU ĐỀ VÀ NÚT) BẰNG CODE
+            Panel pnlClassToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+
+            MaterialSkin.Controls.MaterialLabel lblClassTitle = new MaterialSkin.Controls.MaterialLabel
+            {
+                Text = "📚 Danh sách lớp học của bạn",
+                FontType = MaterialSkin.MaterialSkinManager.fontType.H6,
+                Location = new Point(0, 5),
+                AutoSize = true
+            };
+
+            // GOM NÚT VÀO GÓC PHẢI
+            FlowLayoutPanel flpClassActions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right,
+                Width = 400,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(0, 5, 0, 0)
+            };
+
+            flpClassActions.Controls.Add(btnOpenCreateClass);
+            flpClassActions.Controls.Add(btnOpenJoinClass);
+
+            pnlClassToolbar.Controls.Add(lblClassTitle);
+            pnlClassToolbar.Controls.Add(flpClassActions);
+
+            // TẠO KHUNG BỌC LISTVIEW ĐỂ CÁCH LỀ TRÊN 20PX
+            Panel pnlListWrapper = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 20, 0, 0) };
+            pnlListWrapper.Controls.Add(lvwClasses);
+
+            tabClasses.Controls.Add(pnlListWrapper);
+            tabClasses.Controls.Add(pnlClassToolbar); // Add sau cùng để neo lên Top chuẩn xác
             // 
             // btnOpenJoinClass
             // 
-            btnOpenJoinClass.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenJoinClass.AutoSize = true;
             btnOpenJoinClass.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnOpenJoinClass.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnOpenJoinClass.Depth = 0;
             btnOpenJoinClass.HighEmphasis = true;
             btnOpenJoinClass.Icon = null;
-            btnOpenJoinClass.Location = new Point(598, 15);
-            btnOpenJoinClass.Margin = new Padding(4, 6, 4, 6);
             btnOpenJoinClass.MouseState = MaterialSkin.MouseState.HOVER;
             btnOpenJoinClass.Name = "btnOpenJoinClass";
             btnOpenJoinClass.NoAccentTextColor = Color.Empty;
-            btnOpenJoinClass.Size = new Size(122, 36);
             btnOpenJoinClass.TabIndex = 2;
-            btnOpenJoinClass.Text = "Tham Gia Lớp";
-            btnOpenJoinClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnOpenJoinClass.Text = "THAM GIA LỚP";
+            btnOpenJoinClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined; // Đổi thành dạng Viền
             btnOpenJoinClass.UseAccentColor = false;
             btnOpenJoinClass.UseVisualStyleBackColor = true;
             btnOpenJoinClass.Click += btnOpenJoinClass_Click;
             // 
             // lvwClasses
             // 
-            lvwClasses.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lvwClasses.Dock = DockStyle.Fill; // Lấp đầy toàn bộ không gian còn lại
             lvwClasses.AutoSizeTable = false;
             lvwClasses.BackColor = Color.FromArgb(255, 255, 255);
             lvwClasses.BorderStyle = BorderStyle.None;
             lvwClasses.Columns.AddRange(new ColumnHeader[] { columnHeader1, columnHeader2 });
             lvwClasses.Depth = 0;
             lvwClasses.FullRowSelect = true;
-            lvwClasses.Location = new Point(15, 60);
             lvwClasses.MinimumSize = new Size(200, 100);
             lvwClasses.MouseLocation = new Point(-1, -1);
             lvwClasses.MouseState = MaterialSkin.MouseState.OUT;
             lvwClasses.Name = "lvwClasses";
             lvwClasses.OwnerDraw = true;
-            lvwClasses.Size = new Size(825, 290);
             lvwClasses.TabIndex = 1;
             lvwClasses.UseCompatibleStateImageBehavior = false;
             lvwClasses.View = View.Details;
@@ -155,113 +182,118 @@
             // columnHeader1
             // 
             columnHeader1.Text = "Tên lớp học";
-            columnHeader1.Width = 500;
+            columnHeader1.Width = 600; // Nới rộng cột
+
             // 
             // columnHeader2
             // 
             columnHeader2.Text = "Mã tham gia";
-            columnHeader2.Width = 200;
+            columnHeader2.Width = 250; // Nới rộng cột
             // 
             // btnOpenCreateClass
             // 
-            btnOpenCreateClass.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnOpenCreateClass.AutoSize = true;
             btnOpenCreateClass.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnOpenCreateClass.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnOpenCreateClass.Depth = 0;
             btnOpenCreateClass.HighEmphasis = true;
             btnOpenCreateClass.Icon = null;
-            btnOpenCreateClass.Location = new Point(730, 15);
-            btnOpenCreateClass.Margin = new Padding(4, 6, 4, 6);
             btnOpenCreateClass.MouseState = MaterialSkin.MouseState.HOVER;
             btnOpenCreateClass.Name = "btnOpenCreateClass";
             btnOpenCreateClass.NoAccentTextColor = Color.Empty;
-            btnOpenCreateClass.Size = new Size(112, 36);
             btnOpenCreateClass.TabIndex = 0;
-            btnOpenCreateClass.Text = "Tạo lớp mới";
-            btnOpenCreateClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
-            btnOpenCreateClass.UseAccentColor = false;
+            btnOpenCreateClass.Text = "TẠO LỚP MỚI";
+            btnOpenCreateClass.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained; // Đổ màu đặc
+            btnOpenCreateClass.UseAccentColor = true; // Dùng màu nhấn (vàng/cam) cho nổi bật
             btnOpenCreateClass.UseVisualStyleBackColor = true;
             btnOpenCreateClass.Click += btnOpenCreateClass_Click;
             // 
             // tabProfile
             // 
+            tabProfile.BackColor = Color.White;
             tabProfile.Controls.Add(lblFaceIdTitle);
             tabProfile.Controls.Add(picCamera);
             tabProfile.Controls.Add(btnStartCamera);
             tabProfile.Controls.Add(btnCaptureFace);
             tabProfile.Controls.Add(btnSaveProfile);
-            tabProfile.Controls.Add(switchTeacher);
-            tabProfile.Controls.Add(switchStudent);
+            tabProfile.Controls.Add(switchTeacher); // GIỮ LẠI CÔNG TẮC
+            tabProfile.Controls.Add(switchStudent); // GIỮ LẠI CÔNG TẮC
             tabProfile.Controls.Add(txtPhone);
             tabProfile.Controls.Add(txtFullName);
             tabProfile.ImageKey = "Account";
             tabProfile.Location = new Point(4, 31);
             tabProfile.Margin = new Padding(3, 2, 3, 2);
             tabProfile.Name = "tabProfile";
-            tabProfile.Size = new Size(861, 365);
+            tabProfile.Size = new Size(1266, 635);
             tabProfile.TabIndex = 2;
             tabProfile.Text = "Hồ sơ cá nhân";
-            tabProfile.UseVisualStyleBackColor = true;
+
+            // Tạo thêm Label "Thông Tin Cơ Bản" bằng code cho đẹp
+            MaterialSkin.Controls.MaterialLabel lblProfileInfo = new MaterialSkin.Controls.MaterialLabel();
+            lblProfileInfo.Text = "👤 Thông Tin Cơ Bản";
+            lblProfileInfo.FontType = MaterialSkin.MaterialSkinManager.fontType.H6;
+            lblProfileInfo.Location = new Point(150, 50);
+            lblProfileInfo.AutoSize = true;
+            tabProfile.Controls.Add(lblProfileInfo);
             // 
             // lblFaceIdTitle
             // 
             lblFaceIdTitle.AutoSize = true;
             lblFaceIdTitle.Depth = 0;
-            lblFaceIdTitle.Font = new Font("Roboto", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
-            lblFaceIdTitle.Location = new Point(394, 11);
+            lblFaceIdTitle.FontType = MaterialSkin.MaterialSkinManager.fontType.H6;
+            lblFaceIdTitle.Location = new Point(650, 50);
             lblFaceIdTitle.MouseState = MaterialSkin.MouseState.HOVER;
             lblFaceIdTitle.Name = "lblFaceIdTitle";
-            lblFaceIdTitle.Size = new Size(120, 19);
+            lblFaceIdTitle.Size = new Size(200, 19);
             lblFaceIdTitle.TabIndex = 8;
-            lblFaceIdTitle.Text = "Thiết lập Face ID";
+            lblFaceIdTitle.Text = "📸 Thiết Lập Face ID";
             // 
             // picCamera
             // 
             picCamera.BackColor = Color.Black;
             picCamera.BorderStyle = BorderStyle.FixedSingle;
-            picCamera.Location = new Point(394, 30);
-            picCamera.Margin = new Padding(3, 2, 3, 2);
+            picCamera.Location = new Point(650, 100);
             picCamera.Name = "picCamera";
-            picCamera.Size = new Size(420, 203);
-            picCamera.SizeMode = PictureBoxSizeMode.StretchImage;
+            picCamera.Size = new Size(480, 360);
+            picCamera.SizeMode = PictureBoxSizeMode.Zoom;
             picCamera.TabIndex = 5;
             picCamera.TabStop = false;
             // 
             // btnStartCamera
             // 
+            btnStartCamera.AutoSize = false;
             btnStartCamera.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnStartCamera.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnStartCamera.Depth = 0;
             btnStartCamera.HighEmphasis = true;
             btnStartCamera.Icon = null;
-            btnStartCamera.Location = new Point(394, 244);
-            btnStartCamera.Margin = new Padding(4);
+            btnStartCamera.Location = new Point(650, 480);
             btnStartCamera.MouseState = MaterialSkin.MouseState.HOVER;
             btnStartCamera.Name = "btnStartCamera";
             btnStartCamera.NoAccentTextColor = Color.Empty;
-            btnStartCamera.Size = new Size(112, 36);
+            btnStartCamera.Size = new Size(160, 40);
             btnStartCamera.TabIndex = 6;
-            btnStartCamera.Text = "BẬT CAMERA";
-            btnStartCamera.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
+            btnStartCamera.Text = "📹 BẬT CAMERA";
+            btnStartCamera.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined;
             btnStartCamera.UseAccentColor = false;
             btnStartCamera.UseVisualStyleBackColor = true;
             btnStartCamera.Click += btnStartCamera_Click;
             // 
             // btnCaptureFace
             // 
+            btnCaptureFace.AutoSize = false;
             btnCaptureFace.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnCaptureFace.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnCaptureFace.Depth = 0;
             btnCaptureFace.HighEmphasis = true;
             btnCaptureFace.Icon = null;
-            btnCaptureFace.Location = new Point(508, 244);
-            btnCaptureFace.Margin = new Padding(4);
+            btnCaptureFace.Location = new Point(830, 480);
             btnCaptureFace.MouseState = MaterialSkin.MouseState.HOVER;
             btnCaptureFace.Name = "btnCaptureFace";
             btnCaptureFace.NoAccentTextColor = Color.Empty;
-            btnCaptureFace.Size = new Size(160, 36);
+            btnCaptureFace.Size = new Size(300, 40);
             btnCaptureFace.TabIndex = 7;
-            btnCaptureFace.Text = "QUÉT & LƯU FACE ID";
+            btnCaptureFace.Text = "🎯 QUÉT VÀ LƯU FACE ID";
             btnCaptureFace.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
             btnCaptureFace.UseAccentColor = true;
             btnCaptureFace.UseVisualStyleBackColor = true;
@@ -269,53 +301,23 @@
             // 
             // btnSaveProfile
             // 
+            btnSaveProfile.AutoSize = false;
             btnSaveProfile.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnSaveProfile.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnSaveProfile.Depth = 0;
             btnSaveProfile.HighEmphasis = true;
             btnSaveProfile.Icon = null;
-            btnSaveProfile.Location = new Point(35, 225);
-            btnSaveProfile.Margin = new Padding(4);
+            btnSaveProfile.Location = new Point(150, 350); // Đẩy nút lưu xuống dưới công tắc
             btnSaveProfile.MouseState = MaterialSkin.MouseState.HOVER;
             btnSaveProfile.Name = "btnSaveProfile";
             btnSaveProfile.NoAccentTextColor = Color.Empty;
-            btnSaveProfile.Size = new Size(119, 36);
+            btnSaveProfile.Size = new Size(180, 40);
             btnSaveProfile.TabIndex = 4;
-            btnSaveProfile.Text = "LƯU THAY ĐỔI";
+            btnSaveProfile.Text = "💾 LƯU THAY ĐỔI";
             btnSaveProfile.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
             btnSaveProfile.UseAccentColor = false;
             btnSaveProfile.UseVisualStyleBackColor = true;
             btnSaveProfile.Click += btnSaveProfile_Click;
-            // 
-            // switchTeacher
-            // 
-            switchTeacher.AutoSize = true;
-            switchTeacher.Depth = 0;
-            switchTeacher.Location = new Point(35, 172);
-            switchTeacher.Margin = new Padding(0);
-            switchTeacher.MouseLocation = new Point(-1, -1);
-            switchTeacher.MouseState = MaterialSkin.MouseState.HOVER;
-            switchTeacher.Name = "switchTeacher";
-            switchTeacher.Ripple = true;
-            switchTeacher.Size = new Size(174, 37);
-            switchTeacher.TabIndex = 3;
-            switchTeacher.Text = "Vai trò Giáo viên";
-            switchTeacher.UseVisualStyleBackColor = true;
-            // 
-            // switchStudent
-            // 
-            switchStudent.AutoSize = true;
-            switchStudent.Depth = 0;
-            switchStudent.Location = new Point(35, 135);
-            switchStudent.Margin = new Padding(0);
-            switchStudent.MouseLocation = new Point(-1, -1);
-            switchStudent.MouseState = MaterialSkin.MouseState.HOVER;
-            switchStudent.Name = "switchStudent";
-            switchStudent.Ripple = true;
-            switchStudent.Size = new Size(170, 37);
-            switchStudent.TabIndex = 2;
-            switchStudent.Text = "Vai trò Học sinh";
-            switchStudent.UseVisualStyleBackColor = true;
             // 
             // txtPhone
             // 
@@ -325,16 +327,13 @@
             txtPhone.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtPhone.Hint = "Số điện thoại";
             txtPhone.LeadingIcon = null;
-            txtPhone.Location = new Point(35, 82);
-            txtPhone.Margin = new Padding(3, 2, 3, 2);
+            txtPhone.Location = new Point(150, 180);
             txtPhone.MaxLength = 15;
             txtPhone.MouseState = MaterialSkin.MouseState.OUT;
             txtPhone.Multiline = false;
             txtPhone.Name = "txtPhone";
-            txtPhone.Size = new Size(306, 50);
+            txtPhone.Size = new Size(400, 50);
             txtPhone.TabIndex = 1;
-            txtPhone.Text = "";
-            txtPhone.TrailingIcon = null;
             // 
             // txtFullName
             // 
@@ -344,48 +343,46 @@
             txtFullName.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtFullName.Hint = "Họ và tên";
             txtFullName.LeadingIcon = null;
-            txtFullName.Location = new Point(35, 30);
-            txtFullName.Margin = new Padding(3, 2, 3, 2);
+            txtFullName.Location = new Point(150, 100);
             txtFullName.MaxLength = 100;
             txtFullName.MouseState = MaterialSkin.MouseState.OUT;
             txtFullName.Multiline = false;
             txtFullName.Name = "txtFullName";
-            txtFullName.Size = new Size(306, 50);
+            txtFullName.Size = new Size(400, 50);
             txtFullName.TabIndex = 0;
-            txtFullName.Text = "";
-            txtFullName.TrailingIcon = null;
             // 
             // tabSettings
             // 
+            tabSettings.Controls.Add(btnOpenExamManager);
             tabSettings.ImageKey = "Settings";
             tabSettings.Location = new Point(4, 31);
             tabSettings.Margin = new Padding(3, 2, 3, 2);
             tabSettings.Name = "tabSettings";
-            tabSettings.Size = new Size(861, 365);
+            tabSettings.Size = new Size(1266, 635);
             tabSettings.TabIndex = 3;
             tabSettings.Text = "Cài đặt";
             tabSettings.UseVisualStyleBackColor = true;
-            // Add Exams management button for teachers
-            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
+            // 
+            // btnOpenExamManager
+            // 
             btnOpenExamManager.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnOpenExamManager.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             btnOpenExamManager.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
             btnOpenExamManager.Depth = 0;
             btnOpenExamManager.HighEmphasis = true;
             btnOpenExamManager.Icon = null;
-            btnOpenExamManager.Location = new Point(600, 15);
+            btnOpenExamManager.Location = new Point(609, 15);
             btnOpenExamManager.Margin = new Padding(4, 6, 4, 6);
             btnOpenExamManager.MouseState = MaterialSkin.MouseState.HOVER;
             btnOpenExamManager.Name = "btnOpenExamManager";
             btnOpenExamManager.NoAccentTextColor = Color.Empty;
-            btnOpenExamManager.Size = new Size(140, 36);
+            btnOpenExamManager.Size = new Size(131, 36);
             btnOpenExamManager.TabIndex = 10;
             btnOpenExamManager.Text = "Quản lý đề thi";
             btnOpenExamManager.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
             btnOpenExamManager.UseAccentColor = false;
             btnOpenExamManager.UseVisualStyleBackColor = true;
             btnOpenExamManager.Click += btnOpenExamManager_Click;
-            tabSettings.Controls.Add(btnOpenExamManager);
             // 
             // imageList1
             // 
@@ -396,8 +393,6 @@
             imageList1.Images.SetKeyName(1, "Settings");
             imageList1.Images.SetKeyName(2, "Class");
             imageList1.Images.SetKeyName(3, "Home");
-            // Declare btnOpenExamManager field
-            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
             // 
             // cmsUserMenu
             // 
@@ -424,7 +419,7 @@
             btnUserAccount.Depth = 0;
             btnUserAccount.HighEmphasis = true;
             btnUserAccount.Icon = null;
-            btnUserAccount.Location = new Point(648, 20);
+            btnUserAccount.Location = new Point(1053, 20);
             btnUserAccount.Margin = new Padding(4);
             btnUserAccount.MouseState = MaterialSkin.MouseState.HOVER;
             btnUserAccount.Name = "btnUserAccount";
@@ -442,11 +437,41 @@
             timerCamera.Interval = 30;
             timerCamera.Tick += timerCamera_Tick;
             // 
+            // switchTeacher
+            // 
+            switchTeacher.AutoSize = true;
+            switchTeacher.Depth = 0;
+            switchTeacher.Location = new Point(150, 290); // Đặt dưới switchStudent
+            switchTeacher.Margin = new Padding(0);
+            switchTeacher.MouseLocation = new Point(-1, -1);
+            switchTeacher.MouseState = MaterialSkin.MouseState.HOVER;
+            switchTeacher.Name = "switchTeacher";
+            switchTeacher.Ripple = true;
+            switchTeacher.Size = new Size(174, 37);
+            switchTeacher.TabIndex = 3;
+            switchTeacher.Text = "Vai trò Giáo viên";
+            switchTeacher.UseVisualStyleBackColor = true;
+            // 
+            // switchStudent
+            // 
+            switchStudent.AutoSize = true;
+            switchStudent.Depth = 0;
+            switchStudent.Location = new Point(150, 250); // Đặt ngay dưới txtPhone
+            switchStudent.Margin = new Padding(0);
+            switchStudent.MouseLocation = new Point(-1, -1);
+            switchStudent.MouseState = MaterialSkin.MouseState.HOVER;
+            switchStudent.Name = "switchStudent";
+            switchStudent.Ripple = true;
+            switchStudent.Size = new Size(170, 37);
+            switchStudent.TabIndex = 2;
+            switchStudent.Text = "Vai trò Học sinh";
+            switchStudent.UseVisualStyleBackColor = true;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(875, 450);
+            ClientSize = new Size(1280, 720);
             Controls.Add(btnUserAccount);
             Controls.Add(materialTabControl1);
             DrawerShowIconsWhenHidden = true;
@@ -466,33 +491,10 @@
             tabProfile.ResumeLayout(false);
             tabProfile.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)picCamera).EndInit();
+            tabSettings.ResumeLayout(false);
+            tabSettings.PerformLayout();
             cmsUserMenu.ResumeLayout(false);
             ResumeLayout(false);
-
-            // Add a new button to tabSettings for Exams
-            btnOpenExamManager = new MaterialSkin.Controls.MaterialButton();
-            tabSettings.Controls.Add(btnOpenExamManager);
-            // 
-            // btnOpenExamManager
-            // 
-            btnOpenExamManager.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOpenExamManager.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            btnOpenExamManager.Density = MaterialSkin.Controls.MaterialButton.MaterialButtonDensity.Default;
-            btnOpenExamManager.Depth = 0;
-            btnOpenExamManager.HighEmphasis = true;
-            btnOpenExamManager.Icon = null;
-            btnOpenExamManager.Location = new Point(600, 15);
-            btnOpenExamManager.Margin = new Padding(4, 6, 4, 6);
-            btnOpenExamManager.MouseState = MaterialSkin.MouseState.HOVER;
-            btnOpenExamManager.Name = "btnOpenExamManager";
-            btnOpenExamManager.NoAccentTextColor = Color.Empty;
-            btnOpenExamManager.Size = new Size(140, 36);
-            btnOpenExamManager.TabIndex = 10;
-            btnOpenExamManager.Text = "Quản lý đề thi";
-            btnOpenExamManager.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
-            btnOpenExamManager.UseAccentColor = false;
-            btnOpenExamManager.UseVisualStyleBackColor = true;
-            btnOpenExamManager.Click += btnOpenExamManager_Click;
         }
 
         #endregion
@@ -506,8 +508,6 @@
         private MaterialSkin.Controls.MaterialLabel lblHomeWelcome;
         private MaterialSkin.Controls.MaterialTextBox txtFullName;
         private MaterialSkin.Controls.MaterialTextBox txtPhone;
-        private MaterialSkin.Controls.MaterialSwitch switchStudent;
-        private MaterialSkin.Controls.MaterialSwitch switchTeacher;
         private MaterialSkin.Controls.MaterialButton btnSaveProfile;
         private MaterialSkin.Controls.MaterialContextMenuStrip cmsUserMenu;
         private System.Windows.Forms.ToolStripMenuItem tsmLogout;
@@ -525,5 +525,7 @@
         private ColumnHeader columnHeader2;
         private MaterialSkin.Controls.MaterialButton btnOpenJoinClass;
         private MaterialSkin.Controls.MaterialButton btnOpenExamManager;
+        private MaterialSkin.Controls.MaterialSwitch switchTeacher;
+        private MaterialSkin.Controls.MaterialSwitch switchStudent;
     }
 }

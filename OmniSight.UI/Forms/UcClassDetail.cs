@@ -112,6 +112,9 @@ namespace OmniSight.UI.Forms
                 // ====================
 
                 flpExams.Controls.Clear();
+                // THÊM 2 DÒNG NÀY ĐỂ ÉP XẾP HÀNG DỌC:
+                flpExams.FlowDirection = FlowDirection.TopDown;
+                flpExams.WrapContents = false;
                 flpExams.Padding = new Padding(0, 70, 0, 0);
                 var user = _authService.CurrentUser;
                 if (user == null) return;
@@ -154,7 +157,7 @@ namespace OmniSight.UI.Forms
             };
 
             // Đảm bảo khi Form to ra/nhỏ lại, card tự động co giãn theo
-            card.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            //card.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
             Label lblTitle = new Label
             {
@@ -892,67 +895,92 @@ namespace OmniSight.UI.Forms
 
         private void GradeSubmission(int submissionId)
         {
-            // Mở dialog để nhập điểm và phản hồi
-            Form gradeForm = new Form()
+            // Khởi tạo MaterialForm thay vì Form thường
+            MaterialSkin.Controls.MaterialForm gradeForm = new MaterialSkin.Controls.MaterialForm()
             {
-                Text = "Chấm điểm bài tập",
+                Text = "CHẤM ĐIỂM BÀI NỘP",
                 Width = 450,
-                Height = 280,
+                Height = 350, // Tăng chiều cao lên 350px để chừa chỗ cho thanh tiêu đề
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
-                MinimizeBox = false
+                MinimizeBox = false,
+                Sizable = false // Không cho phép kéo dãn form
             };
 
-            Label lblScore = new Label() { Left = 20, Top = 20, Text = "Điểm (0-10):", Width = 200 };
+            // QUAN TRỌNG: Thêm form này vào trình quản lý để nó tự động nhận Màu sắc và Dark Mode
+            MaterialSkin.MaterialSkinManager.Instance.AddFormToManage(gradeForm);
+
+            // Tọa độ Y bắt đầu từ 80 để không bị thanh tiêu đề che mất
+            MaterialSkin.Controls.MaterialLabel lblScore = new MaterialSkin.Controls.MaterialLabel()
+            {
+                Left = 20,
+                Top = 85,
+                Text = "Điểm số (0-10):",
+                AutoSize = true
+            };
+
+            // MaterialSkin không có NumericUpDown riêng, ta dùng mặc định nhưng chỉnh Font cho đẹp
             NumericUpDown nudScore = new NumericUpDown()
             {
-                Left = 150,
-                Top = 20,
+                Left = 160,
+                Top = 85,
                 Width = 100,
                 Maximum = 10,
                 Minimum = 0,
                 DecimalPlaces = 1,
-                Increment = 0.5m
+                Increment = 0.5m,
+                Font = new Font("Roboto", 11)
             };
 
-            Label lblFeedback = new Label() { Left = 20, Top = 70, Text = "Phản hồi (tùy chọn):", Width = 200 };
-            TextBox txtFeedback = new TextBox()
+            // Dùng MultiLineTextBox của Material và tận dụng tính năng Hint (không cần Label rườm rà)
+            MaterialSkin.Controls.MaterialMultiLineTextBox2 txtFeedback = new MaterialSkin.Controls.MaterialMultiLineTextBox2()
             {
                 Left = 20,
-                Top = 100,
+                Top = 140,
                 Width = 400,
-                Height = 80,
-                Multiline = true
+                Height = 120,
+                Hint = "Nhập nhận xét, phản hồi cho học sinh (tùy chọn)..."
             };
 
-            Button okButton = new Button()
+            // Nút Lưu (Dùng màu nổi bật)
+            MaterialSkin.Controls.MaterialButton okButton = new MaterialSkin.Controls.MaterialButton()
             {
-                Text = "Lưu",
-                Left = 200,
-                Width = 80,
-                Top = 200,
-                DialogResult = DialogResult.OK
-            };
-            Button cancelButton = new Button()
-            {
-                Text = "Hủy",
-                Left = 290,
-                Width = 80,
-                Top = 200,
-                DialogResult = DialogResult.Cancel
+                Text = "💾 LƯU ĐIỂM",
+                Left = 180,
+                Top = 280,
+                AutoSize = true,
+                DialogResult = DialogResult.OK,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
+                UseAccentColor = true,
+                Cursor = Cursors.Hand
             };
 
+            // Nút Hủy (Dùng dạng viền)
+            MaterialSkin.Controls.MaterialButton cancelButton = new MaterialSkin.Controls.MaterialButton()
+            {
+                Text = "❌ HỦY",
+                Left = 330,
+                Top = 280,
+                AutoSize = true,
+                DialogResult = DialogResult.Cancel,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined,
+                Cursor = Cursors.Hand
+            };
+
+            // Thêm control vào Form
             gradeForm.Controls.Add(lblScore);
             gradeForm.Controls.Add(nudScore);
-            gradeForm.Controls.Add(lblFeedback);
             gradeForm.Controls.Add(txtFeedback);
             gradeForm.Controls.Add(okButton);
             gradeForm.Controls.Add(cancelButton);
+
+            // Gắn phím tắt Enter và ESC
             gradeForm.AcceptButton = okButton;
             gradeForm.CancelButton = cancelButton;
 
-            if (gradeForm.ShowDialog() == DialogResult.OK)
+            // Hiển thị form (Nên truyền 'this' hoặc 'this.ParentForm' vào để form nằm chính giữa app)
+            if (gradeForm.ShowDialog(this.ParentForm) == DialogResult.OK)
             {
                 SaveGrade(submissionId, (float)nudScore.Value, txtFeedback.Text);
             }
@@ -984,7 +1012,7 @@ namespace OmniSight.UI.Forms
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            // Tiêu đề bài tập
+            // 1. Tiêu đề (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
             Label lblTitle = new Label
             {
                 Text = assignment.Title ?? "Không có tiêu đề",
@@ -992,18 +1020,24 @@ namespace OmniSight.UI.Forms
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
+            card.Controls.Add(lblTitle);
 
-            // Mô tả
+            int currentY = lblTitle.Bottom + 10; // Biến Y sẽ chạy dần xuống dưới
+
+            // 2. Mô tả (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
             Label lblDescription = new Label
             {
                 Text = assignment.Description ?? "Không có mô tả",
                 Font = new Font("Roboto", 10),
                 AutoSize = true,
-                MaximumSize = new Size(card.Width - 20, 0),
-                Location = new Point(10, 35)
+                MaximumSize = new Size(card.Width - 200, 0), // Trừ hao nhiều hơn để không chạm nút
+                Location = new Point(10, currentY)
             };
+            card.Controls.Add(lblDescription);
 
-            // Hạn chót
+            currentY = lblDescription.Bottom + 10;
+
+            // 3. Hạn chót (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
             string dueText = assignment.DueDate.HasValue ? $"Hạn chót: {assignment.DueDate:dd/MM/yyyy HH:mm}" : "Không có hạn chót";
             Label lblDueDate = new Label
             {
@@ -1011,11 +1045,11 @@ namespace OmniSight.UI.Forms
                 Font = new Font("Roboto", 9, FontStyle.Italic),
                 ForeColor = assignment.DueDate.HasValue && assignment.DueDate < DateTime.Now ? Color.Red : Color.Gray,
                 AutoSize = true,
-                Location = new Point(10, lblDescription.Bottom + 10)
+                Location = new Point(10, currentY)
             };
+            card.Controls.Add(lblDueDate);
 
-            // Biến lưu trữ tọa độ Y hiện tại để vẽ tiếp các nút bấm
-            int currentY = lblDueDate.Bottom + 15;
+            currentY = lblDueDate.Bottom + 15;
 
             // Nếu có link tài nguyên, thêm nút mở
             if (!string.IsNullOrEmpty(assignment.AttachmentUrl))
@@ -1146,9 +1180,7 @@ namespace OmniSight.UI.Forms
                 }
             }
 
-            card.Controls.Add(lblTitle);
-            card.Controls.Add(lblDescription);
-            card.Controls.Add(lblDueDate);
+            
 
             // Gán chiều cao cuối cùng cho khung card
             card.Height = currentY + 10;
@@ -1323,6 +1355,9 @@ namespace OmniSight.UI.Forms
             try
             {
                 flpMembers.Controls.Clear();
+
+                flpMembers.FlowDirection = FlowDirection.TopDown;
+                flpMembers.WrapContents = false;
 
                 // Add title
                 Label lblTitle = new Label

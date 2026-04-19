@@ -111,22 +111,41 @@ namespace OmniSight.UI.Forms
         {
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
-            // Toolbar
-            var toolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 245) };
-            btnCreateExam = new MaterialButton { Text = "➕ Tạo Bài Thi", Location = new Point(10, 10), Width = 120 };
-            btnCreateExam.Click += BtnCreateExam_Click;
-            btnEditExam = new MaterialButton { Text = "✏️ Sửa", Location = new Point(140, 10), Width = 100 };
-            btnEditExam.Click += BtnEditExam_Click;
-            btnDeleteExam = new MaterialButton { Text = "🗑️ Xóa", Location = new Point(250, 10), Width = 100 };
-            btnDeleteExam.Click += BtnDeleteExam_Click;
-            btnRefresh = new MaterialButton { Text = "🔄 Tải Lại", Location = new Point(360, 10), Width = 100 };
-            btnRefresh.Click += (s, e) => LoadExamsAsync();
-            // === THÊM NÚT NHẬP TỪ WORD TẠI ĐÂY ===
-            toolbar.Controls.AddRange(new Control[] { btnCreateExam, btnEditExam, btnDeleteExam, btnRefresh, btnImportWord });
+            // 1. THANH CÔNG CỤ: Dùng FlowLayoutPanel để các nút tự động xếp hàng và cách đều nhau
+            var toolbar = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 60, // Tăng chiều cao thanh công cụ lên một chút
+                BackColor = Color.FromArgb(245, 245, 245),
+                Padding = new Padding(15, 12, 15, 10), // Tạo khoảng trống lề cho đẹp
+                WrapContents = false
+            };
 
+            // Đổi sang dùng AutoSize = true để nút tự co giãn theo chữ, không cần set cứng Location nữa
+            btnCreateExam = new MaterialButton { Text = "➕ TẠO BÀI THI", AutoSize = true };
+            btnCreateExam.Click += BtnCreateExam_Click;
+
+            btnEditExam = new MaterialButton { Text = "✏️ SỬA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnEditExam.Click += BtnEditExam_Click;
+
+            btnDeleteExam = new MaterialButton { Text = "🗑️ XÓA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnDeleteExam.Click += BtnDeleteExam_Click;
+
+            btnRefresh = new MaterialButton { Text = "🔄 TẢI LẠI", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnRefresh.Click += (s, e) => LoadExamsAsync();
+
+            // Xóa dòng bị trùng lặp cũ của bạn, chỉ thêm 1 lần sạch sẽ:
             toolbar.Controls.AddRange(new Control[] { btnCreateExam, btnEditExam, btnDeleteExam, btnRefresh });
 
-            // DataGrid
+            // 2. KHUNG CHỨA BẢNG: Tạo một Panel bọc DataGridView để tạo lề (Padding)
+            var gridWrapper = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(15), // Cách lề Form 15px ở mọi phía
+                BackColor = Color.White
+            };
+
+            // 3. NÂNG CẤP BẢNG DATA: Tăng chiều cao hàng, đổi màu font
             dgvExams = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -135,10 +154,34 @@ namespace OmniSight.UI.Forms
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
+                BorderStyle = BorderStyle.FixedSingle, // Viền nhẹ
                 RowHeadersVisible = false,
-                GridColor = Color.FromArgb(200, 200, 200),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                GridColor = Color.FromArgb(220, 220, 220),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+
+                // Làm cho các hàng cao và thoáng hơn (mặc định là 22 rất bé)
+                RowTemplate = { Height = 45 },
+
+                // Tùy chỉnh Tiêu đề cột
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 50,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(240, 240, 240),
+                    ForeColor = Color.Black,
+                    Font = new Font("Roboto", 11, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+
+                // Tùy chỉnh Các hàng dữ liệu
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Font = new Font("Roboto", 10),
+                    Padding = new Padding(5, 0, 0, 0), // Lùi chữ vào 5px cho đỡ sát viền
+                    SelectionBackColor = Color.FromArgb(227, 242, 253), // Chuyển màu chọn sang xanh nhạt (giống Google)
+                    SelectionForeColor = Color.Black
+                }
             };
 
             dgvExams.Columns.AddRange(
@@ -153,152 +196,248 @@ namespace OmniSight.UI.Forms
 
             dgvExams.CellDoubleClick += DgvExams_CellDoubleClick;
 
-            panel.Controls.Add(dgvExams);
+            // Đưa lưới vào Wrapper, rồi đưa Wrapper vào Panel chính
+            gridWrapper.Controls.Add(dgvExams);
+
+            panel.Controls.Add(gridWrapper);
             panel.Controls.Add(toolbar);
             tabExamList.Controls.Add(panel);
         }
 
         private void SetupExamDetailTab()
         {
-            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(10) };
+            // Panel chính bọc toàn bộ nội dung, cách lề 20px cho thoáng
+            var mainPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(20) };
 
-            var lblTitle = new MaterialLabel { Text = "Tên Bài Thi:", Location = new Point(10, 10), AutoSize = true };
-            txtExamTitle = new MaterialTextBox { Location = new Point(150, 10), Width = 300, Hint = "Nhập tên bài thi" };
+            // ==========================================
+            // 1. KHU VỰC NHẬP LIỆU (Nằm trên cùng)
+            // ==========================================
+            var pnlTop = new Panel { Dock = DockStyle.Top, Height = 180, BackColor = Color.White };
 
-            var lblClass = new MaterialLabel { Text = "Lớp Học:", Location = new Point(10, 60), AutoSize = true };
-            cbClasses = new ComboBox { Location = new Point(150, 60), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Roboto", 11) };
+            var lblTitle = new MaterialLabel { Text = "Tên Bài Thi:", Location = new Point(0, 15), AutoSize = true };
+            // Dùng Anchor Right để ô Tên bài thi tự động kéo dài ra kịch mép phải
+            txtExamTitle = new MaterialTextBox { Location = new Point(130, 0), Width = 800, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, Hint = "Nhập tên bài thi..." };
 
-            var lblDuration = new MaterialLabel { Text = "Thời Gian (phút):", Location = new Point(10, 110), AutoSize = true };
-            nudDuration = new NumericUpDown { Location = new Point(150, 110), Width = 100, Minimum = 1, Maximum = 180, Value = 60, Font = new Font("Roboto", 11) };
+            var lblClass = new MaterialLabel { Text = "Lớp Học:", Location = new Point(0, 75), AutoSize = true };
+            cbClasses = new ComboBox { Location = new Point(130, 75), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Roboto", 12) };
 
-            // === THÊM 2 Ô CHỌN NGÀY GIỜ BẮT ĐẦU VÀ KẾT THÚC ===
-            var lblStart = new MaterialLabel { Text = "Mở đề lúc:", Location = new Point(10, 150), AutoSize = true };
-            dtpStartTime = new DateTimePicker { Location = new Point(150, 150), Width = 150, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm" };
+            var lblDuration = new MaterialLabel { Text = "Thời Gian (phút):", Location = new Point(480, 75), AutoSize = true };
+            nudDuration = new NumericUpDown { Location = new Point(640, 75), Width = 100, Minimum = 1, Maximum = 180, Value = 60, Font = new Font("Roboto", 12) };
 
-            var lblEnd = new MaterialLabel { Text = "Đóng đề lúc:", Location = new Point(320, 150), AutoSize = true };
-            dtpEndTime = new DateTimePicker { Location = new Point(420, 150), Width = 150, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm" };
+            var lblStart = new MaterialLabel { Text = "Mở đề lúc:", Location = new Point(0, 130), AutoSize = true };
+            dtpStartTime = new DateTimePicker { Location = new Point(130, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Roboto", 11) };
 
-            // ĐẨY CAO CÁC CONTROL Ở DƯỚI XUỐNG THÊM 40px
-            var lblQuestions = new MaterialLabel { Text = "📋 Câu Hỏi:", Location = new Point(10, 200), AutoSize = true, Font = new Font("Roboto", 11, FontStyle.Bold) };
+            var lblEnd = new MaterialLabel { Text = "Đóng đề lúc:", Location = new Point(360, 130), AutoSize = true };
+            dtpEndTime = new DateTimePicker { Location = new Point(480, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Roboto", 11) };
 
-            dgvQuestions = new DataGridView { Location = new Point(10, 230), Width = 760, Height = 210, AutoGenerateColumns = false, AllowUserToAddRows = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect, BackgroundColor = Color.White, BorderStyle = BorderStyle.FixedSingle, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill };
-            dgvQuestions.Columns.AddRange(
-                new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
-                new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung" },
-                new DataGridViewTextBoxColumn { Name = "CorrectOption", DataPropertyName = "CorrectOption", HeaderText = "Đáp Án" }
-            );
+            pnlTop.Controls.AddRange(new Control[] { lblTitle, txtExamTitle, lblClass, cbClasses, lblDuration, nudDuration, lblStart, dtpStartTime, lblEnd, dtpEndTime });
 
-            var questionToolbar = new Panel { Location = new Point(10, 450), Width = 760, Height = 40, BackColor = Color.FromArgb(245, 245, 245) };
-            btnAddQuestion = new MaterialButton { Text = "➕ Thêm Câu", Location = new Point(10, 5), Width = 110 }; btnAddQuestion.Click += BtnAddQuestion_Click;
-            btnEditQuestion = new MaterialButton { Text = "✏️ Sửa Câu", Location = new Point(130, 5), Width = 110 }; btnEditQuestion.Click += BtnEditQuestion_Click;
-            btnDeleteQuestion = new MaterialButton { Text = "🗑️ Xóa Câu", Location = new Point(250, 5), Width = 110 }; btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
+            // ==========================================
+            // 2. KHU VỰC NÚT LƯU / HỦY (Nằm dưới cùng)
+            // ==========================================
+            var pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 70, BackColor = Color.White };
+
+            btnSaveExam = new MaterialButton { Text = "💾 LƯU BÀI THI", Location = new Point(0, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained, UseAccentColor = true };
+            btnSaveExam.Click += BtnSaveExam_Click;
+
+            btnCancelExam = new MaterialButton { Text = "❌ HỦY BỎ", Location = new Point(160, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnCancelExam.Click += BtnCancelExam_Click;
+
+            lblExamInfo = new MaterialLabel { Location = new Point(280, 25), AutoSize = true, Text = "Trạng thái: Chọn bài thi để xem chi tiết", ForeColor = Color.Gray };
+
+            pnlBottom.Controls.AddRange(new Control[] { btnSaveExam, btnCancelExam, lblExamInfo });
+
+            // ==========================================
+            // 3. KHU VỰC BẢNG CÂU HỎI (Lấp đầy khoảng giữa)
+            // ==========================================
+            var pnlCenter = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 10, 0, 10) }; // Tạo margin trên dưới
+
+            // Thanh công cụ nằm ngay trên bảng
+            var questionToolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 245), Padding = new Padding(10, 8, 10, 5), BorderStyle = BorderStyle.FixedSingle };
+            btnAddQuestion = new MaterialButton { Text = "➕ THÊM CÂU", AutoSize = true }; btnAddQuestion.Click += BtnAddQuestion_Click;
+            btnEditQuestion = new MaterialButton { Text = "✏️ SỬA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnEditQuestion.Click += BtnEditQuestion_Click;
+            btnDeleteQuestion = new MaterialButton { Text = "🗑️ XÓA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
+
             questionToolbar.Controls.AddRange(new Control[] { btnAddQuestion, btnEditQuestion, btnDeleteQuestion });
 
-            btnSaveExam = new MaterialButton { Text = "💾 Lưu Bài Thi", Location = new Point(10, 510), Width = 120, BackColor = Color.FromArgb(76, 175, 80), ForeColor = Color.White }; btnSaveExam.Click += BtnSaveExam_Click;
-            btnCancelExam = new MaterialButton { Text = "❌ Hủy", Location = new Point(140, 510), Width = 100 }; btnCancelExam.Click += BtnCancelExam_Click;
-            lblExamInfo = new MaterialLabel { Location = new Point(10, 560), AutoSize = true, Text = "Chọn bài thi để xem chi tiết", ForeColor = Color.Gray };
+            // Nâng cấp giao diện DataGridView câu hỏi
+            dgvQuestions = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoGenerateColumns = false,
+                AllowUserToAddRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                RowTemplate = { Height = 40 }, // Giãn chiều cao hàng
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 45,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 240, 240), Font = new Font("Roboto", 11, FontStyle.Bold) },
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Roboto", 10), Padding = new Padding(5, 0, 0, 0), SelectionBackColor = Color.FromArgb(227, 242, 253), SelectionForeColor = Color.Black }
+            };
 
-            panel.Controls.AddRange(new Control[] { lblTitle, txtExamTitle, lblClass, cbClasses, lblDuration, nudDuration, lblStart, dtpStartTime, lblEnd, dtpEndTime, lblQuestions, dgvQuestions, questionToolbar, btnSaveExam, btnCancelExam, lblExamInfo });
-            tabExamDetail.Controls.Add(panel);
+            dgvQuestions.Columns.AddRange(
+                new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
+                new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung Câu Hỏi" },
+                new DataGridViewTextBoxColumn { Name = "CorrectOption", DataPropertyName = "CorrectOption", HeaderText = "Đáp Án", Width = 150 }
+            );
+
+            // Gắn Toolbar và Grid vào Center Panel
+            pnlCenter.Controls.Add(dgvQuestions);
+            pnlCenter.Controls.Add(questionToolbar);
+
+            // ==========================================
+            // LẮP RÁP TẤT CẢ VÀO MAIN PANEL
+            // LƯU Ý THỨ TỰ ADD: Center thêm đầu tiên để Fill phần còn lại
+            // ==========================================
+            mainPanel.Controls.Add(pnlCenter);
+            mainPanel.Controls.Add(pnlBottom);
+            mainPanel.Controls.Add(pnlTop);
+
+            tabExamDetail.Controls.Add(mainPanel);
         }
 
         private void SetupResultsTab()
         {
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
-            // Panel chứa bộ lọc phía trên
+            // ==========================================
+            // 1. THANH BỘ LỌC VÀ NÚT BẤM (Phía trên)
+            // ==========================================
             Panel pnlHeader = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 70,
                 BackColor = Color.FromArgb(245, 245, 245),
-                Padding = new Padding(10)
+                Padding = new Padding(15) // Cách lề 2 bên
             };
 
             MaterialLabel lblFilter = new MaterialLabel
             {
                 Text = "Chọn bài thi:",
-                Location = new Point(20, 25),
+                Location = new Point(15, 24),
                 AutoSize = true
             };
 
             cbExamFilter = new ComboBox
             {
-                Location = new Point(130, 22),
+                Location = new Point(130, 20),
                 Width = 350,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Roboto", 12)
             };
             cbExamFilter.SelectedIndexChanged += CbExamFilter_SelectedIndexChanged;
 
-            // Nút Xem chi tiết
+            // Gom 2 nút bấm vào FlowLayoutPanel để chúng tự động dãn cách và canh hàng
+            FlowLayoutPanel actionFlow = new FlowLayoutPanel
+            {
+                Location = new Point(500, 15),
+                AutoSize = true,
+                WrapContents = false,
+                BackColor = Color.Transparent
+            };
+
             btnViewDetail = new MaterialButton
             {
                 Text = "👁️ XEM CHI TIẾT BÀI LÀM",
-                Location = new Point(500, 18),
-                Size = new Size(220, 36),
+                AutoSize = true, // Tự co giãn theo chữ
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
-                UseAccentColor = true,
-                AutoSize = false
+                UseAccentColor = true
             };
             btnViewDetail.Click += BtnViewDetail_Click;
 
-            // === CODE MỚI THÊM: NÚT XUẤT EXCEL ===
             btnExportExcel = new MaterialButton
             {
                 Text = "📥 XUẤT EXCEL",
-                Location = new Point(730, 18), // Đặt bên cạnh nút Xem chi tiết
-                Size = new Size(150, 36),
-                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined,
-                AutoSize = false
+                AutoSize = true,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
             };
             btnExportExcel.Click += BtnExportExcel_Click;
-            // ======================================
 
-            pnlHeader.Controls.Add(lblFilter);
-            pnlHeader.Controls.Add(cbExamFilter);
-            pnlHeader.Controls.Add(btnViewDetail);
-            pnlHeader.Controls.Add(btnExportExcel); // Add nút vào panel
+            actionFlow.Controls.Add(btnViewDetail);
+            actionFlow.Controls.Add(btnExportExcel);
 
-            // Bảng kết quả (Giữ nguyên của bạn)
+            pnlHeader.Controls.AddRange(new Control[] { lblFilter, cbExamFilter, actionFlow });
+
+            // ==========================================
+            // 2. KHUNG CHỨA BẢNG KẾT QUẢ (Tạo lề đệm)
+            // ==========================================
+            var gridWrapper = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(15), // Tạo lề 15px xung quanh bảng cho thoáng
+                BackColor = Color.White
+            };
+
+            // ==========================================
+            // 3. BẢNG DỮ LIỆU KẾT QUẢ (Nâng cấp giao diện)
+            // ==========================================
             dgvResults = new DataGridView
             {
                 Dock = DockStyle.Fill,
                 AutoGenerateColumns = false,
                 BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
+                BorderStyle = BorderStyle.FixedSingle,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 RowHeadersVisible = false,
                 AllowUserToAddRows = false,
-                GridColor = Color.FromArgb(230, 230, 230)
+                GridColor = Color.FromArgb(220, 220, 220),
+
+                // Nâng chiều cao mỗi hàng lên 45px (thoáng giống tab Danh sách)
+                RowTemplate = { Height = 45 },
+
+                // Làm đẹp tiêu đề cột
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 50,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(240, 240, 240),
+                    ForeColor = Color.Black,
+                    Font = new Font("Roboto", 11, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+
+                // Làm đẹp dữ liệu và màu khi được chọn
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Font = new Font("Roboto", 10),
+                    Padding = new Padding(5, 0, 0, 0), // Lùi chữ vào một chút
+                    SelectionBackColor = Color.FromArgb(227, 242, 253), // Highlight màu xanh nhạt
+                    SelectionForeColor = Color.Black
+                }
             };
 
             dgvResults.Columns.AddRange(
-                 new DataGridViewTextBoxColumn { Name = "StudentName", DataPropertyName = "StudentName", HeaderText = "Học Sinh" },
-                 new DataGridViewTextBoxColumn { Name = "Score", DataPropertyName = "Score", HeaderText = "Điểm", DefaultCellStyle = new DataGridViewCellStyle { Format = "F1" } },
-                 new DataGridViewTextBoxColumn { Name = "ViolationCount", DataPropertyName = "ViolationCount", HeaderText = "Số Lần Vi Phạm" },
-                 new DataGridViewTextBoxColumn { Name = "StartedAt", DataPropertyName = "StartedAt", HeaderText = "Bắt Đầu", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
-                 new DataGridViewTextBoxColumn { Name = "CompletedAt", DataPropertyName = "CompletedAt", HeaderText = "Kết Thúc", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
-                 new DataGridViewTextBoxColumn { Name = "RetakeStatusDisplay", DataPropertyName = "RetakeStatusDisplay", HeaderText = "Trạng Thái" },
+                new DataGridViewTextBoxColumn { Name = "StudentName", DataPropertyName = "StudentName", HeaderText = "Học Sinh" },
+                new DataGridViewTextBoxColumn { Name = "Score", DataPropertyName = "Score", HeaderText = "Điểm", DefaultCellStyle = new DataGridViewCellStyle { Format = "F1" } },
+                new DataGridViewTextBoxColumn { Name = "ViolationCount", DataPropertyName = "ViolationCount", HeaderText = "Số Lần Vi Phạm" },
+                new DataGridViewTextBoxColumn { Name = "StartedAt", DataPropertyName = "StartedAt", HeaderText = "Bắt Đầu", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
+                new DataGridViewTextBoxColumn { Name = "CompletedAt", DataPropertyName = "CompletedAt", HeaderText = "Kết Thúc", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm dd/MM" } },
+                new DataGridViewTextBoxColumn { Name = "RetakeStatusDisplay", DataPropertyName = "RetakeStatusDisplay", HeaderText = "Trạng Thái" },
 
-                 // === THÊM CỘT NÚT BẤM VÀO ĐÂY ===
-                 new DataGridViewButtonColumn
-                 {
-                     Name = "ActionColumn",
-                     DataPropertyName = "ActionText", // Lấy text từ dữ liệu
-                     HeaderText = "Hành Động",
-                     UseColumnTextForButtonValue = false, // Cho phép chữ trên nút thay đổi linh hoạt
-                     FlatStyle = FlatStyle.Flat
-                 }
-             );
+                new DataGridViewButtonColumn
+                {
+                    Name = "ActionColumn",
+                    DataPropertyName = "ActionText",
+                    HeaderText = "Hành Động",
+                    UseColumnTextForButtonValue = false,
+                    FlatStyle = FlatStyle.Flat
+                }
+            );
             dgvResults.CellFormatting += DgvResults_CellFormatting;
-
-            // === THÊM SỰ KIỆN CLICK NÚT BẤM ===
             dgvResults.CellContentClick += DgvResults_CellContentClick;
-            panel.Controls.Add(dgvResults);
+
+            // Lắp ráp vào Tab
+            gridWrapper.Controls.Add(dgvResults);
+            panel.Controls.Add(gridWrapper);
             panel.Controls.Add(pnlHeader);
+
             tabResults.Controls.Add(panel);
         }
 
