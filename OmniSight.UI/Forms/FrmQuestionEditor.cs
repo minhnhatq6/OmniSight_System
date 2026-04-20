@@ -79,7 +79,7 @@ namespace OmniSight.UI.Forms
             // Buttons
             btnSave = new MaterialButton
             {
-                Text = "💾 LƯU CÂU HỎI",
+                Text = "LƯU CÂU HỎI",
                 Location = new System.Drawing.Point(20, 530),
                 AutoSize = true,
                 UseAccentColor = true, // Dùng màu nhấn cho nổi bật
@@ -89,7 +89,7 @@ namespace OmniSight.UI.Forms
 
             btnCancel = new MaterialButton
             {
-                Text = "❌ HỦY",
+                Text = "HỦY",
                 Location = new System.Drawing.Point(180, 530),
                 AutoSize = true,
                 Type = MaterialButton.MaterialButtonType.Outlined // Nút hủy để dạng viền cho đỡ vướng mắt

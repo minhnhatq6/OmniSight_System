@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -51,7 +51,20 @@ namespace OmniSight.UI.Forms
         private DataGridView dgvResults;
         private MaterialButton btnViewDetail;
         private ComboBox cbExamFilter;
+        private TextBox txtResultSearch;
+        private List<ResultRowViewModel> _resultRows = new List<ResultRowViewModel>();
         private DateTimePicker dtpStartTime, dtpEndTime;
+
+        private sealed class ResultRowViewModel
+        {
+            public string StudentName { get; set; }
+            public float? Score { get; set; }
+            public int ViolationCount { get; set; }
+            public DateTime? StartedAt { get; set; }
+            public DateTime? CompletedAt { get; set; }
+            public string RetakeStatusDisplay { get; set; }
+            public string ActionText { get; set; }
+        }
 
         public FrmExamManagement(ExamService examService, ClassService classService, int teacherId)
         {
@@ -122,16 +135,16 @@ namespace OmniSight.UI.Forms
             };
 
             // Đổi sang dùng AutoSize = true để nút tự co giãn theo chữ, không cần set cứng Location nữa
-            btnCreateExam = new MaterialButton { Text = "➕ TẠO BÀI THI", AutoSize = true };
+            btnCreateExam = new MaterialButton { Text = "TẠO BÀI THI", AutoSize = true };
             btnCreateExam.Click += BtnCreateExam_Click;
 
-            btnEditExam = new MaterialButton { Text = "✏️ SỬA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnEditExam = new MaterialButton { Text = "SỬA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
             btnEditExam.Click += BtnEditExam_Click;
 
-            btnDeleteExam = new MaterialButton { Text = "🗑️ XÓA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnDeleteExam = new MaterialButton { Text = "XÓA", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
             btnDeleteExam.Click += BtnDeleteExam_Click;
 
-            btnRefresh = new MaterialButton { Text = "🔄 TẢI LẠI", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnRefresh = new MaterialButton { Text = "TẢI LẠI", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
             btnRefresh.Click += (s, e) => LoadExamsAsync();
 
             // Xóa dòng bị trùng lặp cũ của bạn, chỉ thêm 1 lần sạch sẽ:
@@ -170,14 +183,14 @@ namespace OmniSight.UI.Forms
                 {
                     BackColor = Color.FromArgb(240, 240, 240),
                     ForeColor = Color.Black,
-                    Font = new Font("Roboto", 11, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 11, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
 
                 // Tùy chỉnh Các hàng dữ liệu
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Font = new Font("Roboto", 10),
+                    Font = new Font("Segoe UI", 10),
                     Padding = new Padding(5, 0, 0, 0), // Lùi chữ vào 5px cho đỡ sát viền
                     SelectionBackColor = Color.FromArgb(227, 242, 253), // Chuyển màu chọn sang xanh nhạt (giống Google)
                     SelectionForeColor = Color.Black
@@ -219,16 +232,16 @@ namespace OmniSight.UI.Forms
             txtExamTitle = new MaterialTextBox { Location = new Point(130, 0), Width = 800, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, Hint = "Nhập tên bài thi..." };
 
             var lblClass = new MaterialLabel { Text = "Lớp Học:", Location = new Point(0, 75), AutoSize = true };
-            cbClasses = new ComboBox { Location = new Point(130, 75), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Roboto", 12) };
+            cbClasses = new ComboBox { Location = new Point(130, 75), Width = 300, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12) };
 
             var lblDuration = new MaterialLabel { Text = "Thời Gian (phút):", Location = new Point(480, 75), AutoSize = true };
-            nudDuration = new NumericUpDown { Location = new Point(640, 75), Width = 100, Minimum = 1, Maximum = 180, Value = 60, Font = new Font("Roboto", 12) };
+            nudDuration = new NumericUpDown { Location = new Point(640, 75), Width = 100, Minimum = 1, Maximum = 180, Value = 60, Font = new Font("Segoe UI", 12) };
 
             var lblStart = new MaterialLabel { Text = "Mở đề lúc:", Location = new Point(0, 130), AutoSize = true };
-            dtpStartTime = new DateTimePicker { Location = new Point(130, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Roboto", 11) };
+            dtpStartTime = new DateTimePicker { Location = new Point(130, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Segoe UI", 11) };
 
             var lblEnd = new MaterialLabel { Text = "Đóng đề lúc:", Location = new Point(360, 130), AutoSize = true };
-            dtpEndTime = new DateTimePicker { Location = new Point(480, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Roboto", 11) };
+            dtpEndTime = new DateTimePicker { Location = new Point(480, 126), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy HH:mm", Font = new Font("Segoe UI", 11) };
 
             pnlTop.Controls.AddRange(new Control[] { lblTitle, txtExamTitle, lblClass, cbClasses, lblDuration, nudDuration, lblStart, dtpStartTime, lblEnd, dtpEndTime });
 
@@ -237,10 +250,10 @@ namespace OmniSight.UI.Forms
             // ==========================================
             var pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 70 };
 
-            btnSaveExam = new MaterialButton { Text = "💾 LƯU BÀI THI", Location = new Point(0, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained, UseAccentColor = true };
+            btnSaveExam = new MaterialButton { Text = "LƯU BÀI THI", Location = new Point(0, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained, UseAccentColor = true };
             btnSaveExam.Click += BtnSaveExam_Click;
 
-            btnCancelExam = new MaterialButton { Text = "❌ HỦY BỎ", Location = new Point(160, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            btnCancelExam = new MaterialButton { Text = "HỦY BỎ", Location = new Point(160, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
             btnCancelExam.Click += BtnCancelExam_Click;
 
             lblExamInfo = new MaterialLabel { Location = new Point(280, 25), AutoSize = true, Text = "Trạng thái: Chọn bài thi để xem chi tiết", ForeColor = Color.Gray };
@@ -254,9 +267,9 @@ namespace OmniSight.UI.Forms
 
             // Thanh công cụ nằm ngay trên bảng
             var questionToolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 245), Padding = new Padding(10, 8, 10, 5), BorderStyle = BorderStyle.FixedSingle };
-            btnAddQuestion = new MaterialButton { Text = "➕ THÊM CÂU", AutoSize = true }; btnAddQuestion.Click += BtnAddQuestion_Click;
-            btnEditQuestion = new MaterialButton { Text = "✏️ SỬA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnEditQuestion.Click += BtnEditQuestion_Click;
-            btnDeleteQuestion = new MaterialButton { Text = "🗑️ XÓA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
+            btnAddQuestion = new MaterialButton { Text = "THÊM CÂU", AutoSize = true }; btnAddQuestion.Click += BtnAddQuestion_Click;
+            btnEditQuestion = new MaterialButton { Text = "SỬA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnEditQuestion.Click += BtnEditQuestion_Click;
+            btnDeleteQuestion = new MaterialButton { Text = "XÓA CÂU", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined }; btnDeleteQuestion.Click += BtnDeleteQuestion_Click;
 
             questionToolbar.Controls.AddRange(new Control[] { btnAddQuestion, btnEditQuestion, btnDeleteQuestion });
 
@@ -275,8 +288,8 @@ namespace OmniSight.UI.Forms
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersHeight = 45,
                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 240, 240), Font = new Font("Roboto", 11, FontStyle.Bold) },
-                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Roboto", 10), Padding = new Padding(5, 0, 0, 0), SelectionBackColor = Color.FromArgb(227, 242, 253), SelectionForeColor = Color.Black }
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 240, 240), Font = new Font("Segoe UI", 11, FontStyle.Bold) },
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 10), Padding = new Padding(5, 0, 0, 0), SelectionBackColor = Color.FromArgb(227, 242, 253), SelectionForeColor = Color.Black }
             };
 
             dgvQuestions.Columns.AddRange(
@@ -327,9 +340,19 @@ namespace OmniSight.UI.Forms
                 Location = new Point(130, 20),
                 Width = 350,
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Roboto", 12)
+                Font = new Font("Segoe UI", 12)
             };
             cbExamFilter.SelectedIndexChanged += CbExamFilter_SelectedIndexChanged;
+
+            txtResultSearch = new TextBox
+            {
+                Location = new Point(130, 58),
+                Width = 350,
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "Tìm học sinh theo tên..."
+            };
+            txtResultSearch.TextChanged += (s, e) => ApplyResultSearchFilter();
 
             // Gom 2 nút bấm vào FlowLayoutPanel để chúng tự động dãn cách và canh hàng
             FlowLayoutPanel actionFlow = new FlowLayoutPanel
@@ -342,7 +365,7 @@ namespace OmniSight.UI.Forms
 
             btnViewDetail = new MaterialButton
             {
-                Text = "👁️ XEM CHI TIẾT BÀI LÀM",
+                Text = "XEM CHI TIẾT BÀI LÀM",
                 AutoSize = true, // Tự co giãn theo chữ
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
                 UseAccentColor = true
@@ -351,7 +374,7 @@ namespace OmniSight.UI.Forms
 
             btnExportExcel = new MaterialButton
             {
-                Text = "📥 XUẤT EXCEL",
+                Text = "XUẤT EXCEL",
                 AutoSize = true,
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
             };
@@ -360,7 +383,8 @@ namespace OmniSight.UI.Forms
             actionFlow.Controls.Add(btnViewDetail);
             actionFlow.Controls.Add(btnExportExcel);
 
-            pnlHeader.Controls.AddRange(new Control[] { lblFilter, cbExamFilter, actionFlow });
+            pnlHeader.Height = 110;
+            pnlHeader.Controls.AddRange(new Control[] { lblFilter, cbExamFilter, txtResultSearch, actionFlow });
 
             // ==========================================
             // 2. KHUNG CHỨA BẢNG KẾT QUẢ (Tạo lề đệm)
@@ -400,14 +424,14 @@ namespace OmniSight.UI.Forms
                 {
                     BackColor = Color.FromArgb(240, 240, 240),
                     ForeColor = Color.Black,
-                    Font = new Font("Roboto", 11, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 11, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
 
                 // Làm đẹp dữ liệu và màu khi được chọn
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Font = new Font("Roboto", 10),
+                    Font = new Font("Segoe UI", 10),
                     Padding = new Padding(5, 0, 0, 0), // Lùi chữ vào một chút
                     SelectionBackColor = Color.FromArgb(227, 242, 253), // Highlight màu xanh nhạt
                     SelectionForeColor = Color.Black
@@ -488,7 +512,7 @@ namespace OmniSight.UI.Forms
                     }
                     finally
                     {
-                        btnImportWord.Text = "📝 Nhập từ Word";
+                        btnImportWord.Text = "Nhập từ Word";
                         btnImportWord.Enabled = true;
                     }
                 }
@@ -841,13 +865,13 @@ namespace OmniSight.UI.Forms
                 _currentExamResults = await _examService.GetExamResultsAsync(selectedExam.ExamId);
 
                 // Bind lên DataGrid
-                var displayData = _currentExamResults.Select(r => new
+                _resultRows = _currentExamResults.Select(r => new ResultRowViewModel
                 {
                     StudentName = r.Student?.FullName ?? "N/A",
-                    r.Score,
+                    Score = r.Score,
                     ViolationCount = r.ViolationLogs != null ? r.ViolationLogs.Count : 0,
-                    r.StartedAt,
-                    r.CompletedAt,
+                    StartedAt = r.StartedAt,
+                    CompletedAt = r.CompletedAt,
 
                     // Chuyển đổi trạng thái tiếng Anh sang tiếng Việt cho đẹp
                     RetakeStatusDisplay = r.RetakeStatus == "Pending" ? "Đang xin làm lại" :
@@ -855,15 +879,31 @@ namespace OmniSight.UI.Forms
                                           r.RetakeStatus == "Retaken" ? "Đang thi lại" : "",
 
                     // Nếu đang Pending thì hiện chữ "Duyệt", không thì để trống
-                    ActionText = r.RetakeStatus == "Pending" ? "✅ Duyệt" : ""
+                    ActionText = r.RetakeStatus == "Pending" ? "Duyệt" : ""
                 }).ToList();
 
-                dgvResults.DataSource = displayData;
+                ApplyResultSearchFilter();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Lỗi tải kết quả: " + ex.Message);
             }
+        }
+
+        private void ApplyResultSearchFilter()
+        {
+            if (dgvResults == null) return;
+
+            var keyword = txtResultSearch?.Text?.Trim();
+            IEnumerable<ResultRowViewModel> query = _resultRows;
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(r => (r.StudentName ?? string.Empty)
+                    .Contains(keyword, StringComparison.OrdinalIgnoreCase));
+            }
+
+            dgvResults.DataSource = query.ToList();
         }
         private void DgvResults_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -1025,6 +1065,11 @@ namespace OmniSight.UI.Forms
             // Cập nhật các control khác
             cbClasses.BackColor = bgColor; cbClasses.ForeColor = textColor;
             cbExamFilter.BackColor = bgColor; cbExamFilter.ForeColor = textColor;
+            if (txtResultSearch != null)
+            {
+                txtResultSearch.BackColor = bgColor;
+                txtResultSearch.ForeColor = textColor;
+            }
             nudDuration.BackColor = bgColor; nudDuration.ForeColor = textColor;
         }
     }

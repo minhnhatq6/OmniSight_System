@@ -31,7 +31,7 @@ namespace OmniSight.UI.Forms
             txtJoinCode.AnimateReadOnly = false;
             txtJoinCode.BorderStyle = BorderStyle.None;
             txtJoinCode.Depth = 0;
-            txtJoinCode.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
+            txtJoinCode.Font = new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtJoinCode.Hint = "Nhập mã lớp (Ví dụ: ABC123)";
             txtJoinCode.LeadingIcon = null;
             txtJoinCode.Location = new Point(20, 90); // Căn lề đồng bộ với form Tạo Lớp

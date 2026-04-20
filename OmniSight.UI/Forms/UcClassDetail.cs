@@ -1,4 +1,5 @@
 ﻿using MaterialSkin.Controls;
+using MaterialSkin;
 using Microsoft.Extensions.DependencyInjection;
 using OmniSight.Core.Entities;
 using OmniSight.Services;
@@ -6,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Xceed.Words.NET;
@@ -21,6 +23,12 @@ namespace OmniSight.UI.Forms
         private readonly int _classId;
         private readonly int _currentUserId;
         private readonly bool _isTeacherOfThisClass;
+        private bool _isDarkTheme;
+        private Color _pageBackgroundColor;
+        private Color _cardBackgroundColor;
+        private Color _secondaryCardBackgroundColor;
+        private Color _primaryTextColor;
+        private Color _secondaryTextColor;
         private int? _editingAssignmentId = null;
         private bool _isDataLoading = false; 
         public UcClassDetail(StreamService streamService, ClassService classService, AuthService authService, int currentUserId, int classId, bool isTeacherOfThisClass)
@@ -44,8 +52,32 @@ namespace OmniSight.UI.Forms
             _isTeacherOfThisClass = isTeacherOfThisClass;
             dtpDueDate.Format = DateTimePickerFormat.Custom;
             dtpDueDate.CustomFormat = "dd/MM/yyyy HH:mm";
+            ApplyCurrentTheme();
            
 
+        }
+
+        private void ApplyCurrentTheme()
+        {
+            _isDarkTheme = MaterialSkinManager.Instance.Theme == MaterialSkinManager.Themes.DARK;
+            _pageBackgroundColor = _isDarkTheme ? Color.FromArgb(45, 45, 48) : Color.White;
+            _cardBackgroundColor = _isDarkTheme ? Color.FromArgb(56, 56, 60) : Color.FromArgb(245, 245, 245);
+            _secondaryCardBackgroundColor = _isDarkTheme ? Color.FromArgb(66, 66, 70) : Color.White;
+            _primaryTextColor = _isDarkTheme ? Color.Gainsboro : Color.Black;
+            _secondaryTextColor = _isDarkTheme ? Color.Silver : Color.Gray;
+
+            BackColor = _pageBackgroundColor;
+            materialTabControl1.BackColor = _pageBackgroundColor;
+
+            foreach (TabPage tab in materialTabControl1.TabPages)
+            {
+                tab.BackColor = _pageBackgroundColor;
+                tab.ForeColor = _primaryTextColor;
+            }
+
+            panelPost.BackColor = _pageBackgroundColor;
+            panelCreateAssignment.BackColor = _pageBackgroundColor;
+            panelExamTeacher.BackColor = _pageBackgroundColor;
         }
 
         // Setter cho AssignmentService (gọi từ MainForm)
@@ -64,9 +96,16 @@ namespace OmniSight.UI.Forms
         private bool _gradingLoaded = false;
         private bool _membersLoaded = false;
         private bool _examsLoaded = false;
+        private List<OmniSight.Core.Entities.ClassMember> _allMembers = new();
+        private string _memberSearchKeyword = string.Empty;
 
         private async void UcClassDetail_VisibleChanged(object sender, EventArgs e)
         {
+            if (this.Visible)
+            {
+                ApplyCurrentTheme();
+            }
+
             if (this.Visible && !_streamLoaded)
             {
                 if (_isDataLoading) return; // Nếu đang load thì thôi
@@ -120,7 +159,7 @@ namespace OmniSight.UI.Forms
                 if (user == null) return;
 
                 // Tiêu đề
-                flpExams.Controls.Add(new Label { Text = "📖 Đề thi", Font = new Font("Roboto", 14, FontStyle.Bold), AutoSize = true, Padding = new Padding(10) });
+                flpExams.Controls.Add(new Label { Text = "Đề thi", Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Padding = new Padding(10) });
 
                 // Chỉ lấy đề của LỚP NÀY
                 var exams = await _examService.GetExamsByClassIdAsync(_classId);
@@ -152,7 +191,7 @@ namespace OmniSight.UI.Forms
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
-                BackColor = Color.FromArgb(245, 245, 245),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -161,8 +200,9 @@ namespace OmniSight.UI.Forms
 
             Label lblTitle = new Label
             {
-                Text = $"📚 {exam.Title}",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
+                Text = exam.Title,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
@@ -173,8 +213,8 @@ namespace OmniSight.UI.Forms
             Label lblInfo = new Label
             {
                 Text = $"Thời lượng: {exam.DurationMinutes} phút | Tạo: {exam.CreatedAt:dd/MM/yyyy}",
-                Font = new Font("Roboto", 9),
-                ForeColor = Color.Gray,
+                Font = new Font("Segoe UI", 9),
+                ForeColor = _secondaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, currentY)
             };
@@ -187,7 +227,7 @@ namespace OmniSight.UI.Forms
             {
                 Button btnManage = new Button
                 {
-                    Text = "🔧 Quản lý",
+                    Text = "Quản lý",
                     AutoSize = false,
                     Width = 100,
                     Height = 35,
@@ -239,7 +279,7 @@ namespace OmniSight.UI.Forms
 
                 if (isWaiting)
                 {
-                    btnTake.Text = "⏳ Chưa mở";
+                    btnTake.Text = "Chưa mở";
                     btnTake.BackColor = Color.Gray; btnTake.ForeColor = Color.White;
                     btnTake.Enabled = false;
                 }
@@ -253,13 +293,13 @@ namespace OmniSight.UI.Forms
                     }
                     else if (myResult.RetakeStatus == "Approved")
                     {
-                        btnTake.Text = "🔄 Làm lại ngay";
+                        btnTake.Text = "Làm lại ngay";
                         btnTake.BackColor = Color.Blue; btnTake.ForeColor = Color.White;
                         btnTake.Click += async (s, e) => { await OpenTakeExamForm(exam); };
                     }
                     else
                     {
-                        btnTake.Text = "✋ Xin làm lại";
+                        btnTake.Text = "Xin làm lại";
                         btnTake.BackColor = Color.Red; btnTake.ForeColor = Color.White;
                         btnTake.Click += async (s, e) => {
                             if (MessageBox.Show("Bạn có muốn gửi yêu cầu xin làm lại bài thi này cho giáo viên?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
@@ -273,13 +313,13 @@ namespace OmniSight.UI.Forms
                 }
                 else if (isExpired)
                 {
-                    btnTake.Text = "🛑 Đã đóng";
+                    btnTake.Text = "Đã đóng";
                     btnTake.BackColor = Color.DarkRed; btnTake.ForeColor = Color.White;
                     btnTake.Enabled = false;
                 }
                 else
                 {
-                    btnTake.Text = "🚀 Vào thi";
+                    btnTake.Text = "Vào thi";
                     btnTake.BackColor = Color.FromArgb(76, 175, 80); btnTake.ForeColor = Color.White;
                     btnTake.Click += async (s, e) => { await OpenTakeExamForm(exam); };
                 }
@@ -357,12 +397,12 @@ namespace OmniSight.UI.Forms
                 AutoSize = true,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
-                BackColor = Color.FromArgb(245, 245, 245),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.None
             };
 
-            Label lblHeader = new Label { Text = $"{author} • {time:dd/MM HH:mm}", Font = new Font("Roboto", 9, FontStyle.Bold), AutoSize = true, Location = new Point(10, 10) };
-            Label lblText = new Label { Text = content, Font = new Font("Roboto", 11), AutoSize = true, MaximumSize = new Size(card.Width - 20, 0), Location = new Point(10, 35) };
+            Label lblHeader = new Label { Text = $"{author} • {time:dd/MM HH:mm}", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = _secondaryTextColor, AutoSize = true, Location = new Point(10, 10) };
+            Label lblText = new Label { Text = content, Font = new Font("Segoe UI", 11), ForeColor = _primaryTextColor, AutoSize = true, MaximumSize = new Size(card.Width - 20, 0), Location = new Point(10, 35) };
 
             card.Controls.Add(lblHeader);
             card.Controls.Add(lblText);
@@ -506,8 +546,8 @@ namespace OmniSight.UI.Forms
                     // View cho học sinh: xem điểm và phản hồi
                     Label lblStudentTitle = new Label
                     {
-                        Text = "📊 Kết quả chấm điểm của bạn",
-                        Font = new Font("Roboto", 14, FontStyle.Bold),
+                        Text = "Kết quả chấm điểm của bạn",
+                        Font = new Font("Segoe UI", 14, FontStyle.Bold),
                         AutoSize = true,
                         Padding = new Padding(10),
                         Margin = new Padding(5, 5, 5, 15)
@@ -556,7 +596,7 @@ namespace OmniSight.UI.Forms
                 AutoSize = true, // Để true nhưng phải kết hợp với FlowLayoutPanel đúng
                 Padding = new Padding(15),
                 Margin = new Padding(10, 10, 10, 15),
-                BackColor = Color.FromArgb(240, 248, 255),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -567,7 +607,8 @@ namespace OmniSight.UI.Forms
             Label lblTitle = new Label
             {
                 Text = $"📋 {assignment.Title}",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
@@ -580,8 +621,8 @@ namespace OmniSight.UI.Forms
             Label lblSubmissionCount = new Label
             {
                 Text = $"Tổng nộp: {totalSubmissions} bài",
-                Font = new Font("Roboto", 10),
-                ForeColor = Color.Gray,
+                Font = new Font("Segoe UI", 10),
+                ForeColor = _secondaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, currentY)
             };
@@ -594,8 +635,8 @@ namespace OmniSight.UI.Forms
                 Label lblNoSubmission = new Label
                 {
                     Text = "Chưa có ai nộp bài.",
-                    Font = new Font("Roboto", 9, FontStyle.Italic),
-                    ForeColor = Color.Gray,
+                    Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                    ForeColor = _secondaryTextColor,
                     AutoSize = true,
                     Location = new Point(10, currentY)
                 };
@@ -608,7 +649,7 @@ namespace OmniSight.UI.Forms
                 foreach (var submission in assignment.Submissions)
                 {
                     string studentName = submission.Student?.FullName ?? "Không xác định";
-                    string statusText = submission.Score.HasValue ? $"✓ Đã chấm: {submission.Score}/10" : "⏳ Chưa chấm";
+                    string statusText = submission.Score.HasValue ? $"Đã chấm: {submission.Score}/10" : "Chưa chấm";
                     string statusColor = submission.Score.HasValue ? "Green" : "Orange";
 
                     var submissionPanel = new Panel
@@ -616,7 +657,7 @@ namespace OmniSight.UI.Forms
                         Width = card.Width - 40,
                         Height = 80,
                         Location = new Point(10, currentY),
-                        BackColor = Color.White,
+                        BackColor = _secondaryCardBackgroundColor,
                         BorderStyle = BorderStyle.None,
                         Margin = new Padding(0, 0, 0, 5)
                     };
@@ -624,8 +665,9 @@ namespace OmniSight.UI.Forms
                     // Tên học sinh
                     Label lblStudent = new Label
                     {
-                        Text = $"👤 {studentName}",
-                        Font = new Font("Roboto", 10, FontStyle.Regular),
+                        Text = studentName,
+                        Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                        ForeColor = _primaryTextColor,
                         AutoSize = true,
                         Location = new Point(5, 5)
                     };
@@ -635,7 +677,7 @@ namespace OmniSight.UI.Forms
                     Label lblStatus = new Label
                     {
                         Text = statusText,
-                        Font = new Font("Roboto", 9),
+                        Font = new Font("Segoe UI", 9),
                         ForeColor = submission.Score.HasValue ? Color.Green : Color.Orange,
                         AutoSize = true,
                         Location = new Point(5, lblStudent.Bottom + 3)
@@ -645,14 +687,14 @@ namespace OmniSight.UI.Forms
                     // Nút mở link
                     Button btnOpenSubmission = new Button
                     {
-                        Text = "📎 Xem",
+                        Text = "Xem",
                         AutoSize = false,
                         Width = 70,
                         Height = 28,
                         Location = new Point(submissionPanel.Width - 150, 5),
                         BackColor = Color.FromArgb(33, 150, 243),
                         ForeColor = Color.White,
-                        Font = new Font("Roboto", 8),
+                        Font = new Font("Segoe UI", 8),
                         FlatStyle = FlatStyle.Flat,
                         Cursor = Cursors.Hand
                     };
@@ -662,14 +704,14 @@ namespace OmniSight.UI.Forms
                     // Nút chấm điểm
                     Button btnGrade = new Button
                     {
-                        Text = "⭐ Chấm",
+                        Text = "Chấm",
                         AutoSize = false,
                         Width = 70,
                         Height = 28,
                         Location = new Point(submissionPanel.Width - 75, 5),
                         BackColor = Color.FromArgb(76, 175, 80),
                         ForeColor = Color.White,
-                        Font = new Font("Roboto", 8),
+                        Font = new Font("Segoe UI", 8),
                         FlatStyle = FlatStyle.Flat,
                         Cursor = Cursors.Hand
                     };
@@ -693,15 +735,16 @@ namespace OmniSight.UI.Forms
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
-                BackColor = Color.FromArgb(245, 245, 245),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
             // Tiêu đề bài tập
             Label lblTitle = new Label
             {
-                Text = $"📝 {assignment.Title}",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
+                Text = assignment.Title,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
@@ -715,11 +758,11 @@ namespace OmniSight.UI.Forms
                 Label lblDescription = new Label
                 {
                     Text = assignment.Description,
-                    Font = new Font("Roboto", 9),
+                    Font = new Font("Segoe UI", 9),
                     AutoSize = true,
                     MaximumSize = new Size(card.Width - 40, 0),
                     Location = new Point(10, currentY),
-                    ForeColor = Color.DarkGray
+                    ForeColor = _secondaryTextColor
                 };
                 card.Controls.Add(lblDescription);
                 currentY = lblDescription.Bottom + 10;
@@ -732,7 +775,7 @@ namespace OmniSight.UI.Forms
                 Label lblDueDate = new Label
                 {
                     Text = dueText,
-                    Font = new Font("Roboto", 9, FontStyle.Italic),
+                    Font = new Font("Segoe UI", 9, FontStyle.Italic),
                     ForeColor = assignment.DueDate < DateTime.Now ? Color.Red : Color.Gray,
                     AutoSize = true,
                     Location = new Point(10, currentY)
@@ -749,8 +792,8 @@ namespace OmniSight.UI.Forms
                 // Chưa nộp bài
                 Label lblNoSubmission = new Label
                 {
-                    Text = "❌ Bạn chưa nộp bài này",
-                    Font = new Font("Roboto", 10, FontStyle.Italic),
+                    Text = "Bạn chưa nộp bài này",
+                    Font = new Font("Segoe UI", 10, FontStyle.Italic),
                     ForeColor = Color.Red,
                     AutoSize = true,
                     Location = new Point(10, currentY)
@@ -763,8 +806,8 @@ namespace OmniSight.UI.Forms
                 // Đã nộp bài
                 Label lblSubmitted = new Label
                 {
-                    Text = $"✅ Đã nộp: {studentSubmission.SubmittedAt:dd/MM/yyyy HH:mm}",
-                    Font = new Font("Roboto", 10),
+                    Text = $"Đã nộp: {studentSubmission.SubmittedAt:dd/MM/yyyy HH:mm}",
+                    Font = new Font("Segoe UI", 10),
                     ForeColor = Color.Green,
                     AutoSize = true,
                     Location = new Point(10, currentY)
@@ -777,14 +820,14 @@ namespace OmniSight.UI.Forms
                 {
                     Button btnViewSubmission = new Button
                     {
-                        Text = "📎 Xem bài nộp",
+                        Text = "Xem bài nộp",
                         AutoSize = false,
                         Width = 120,
                         Height = 30,
                         Location = new Point(10, currentY),
                         BackColor = Color.FromArgb(33, 150, 243),
                         ForeColor = Color.White,
-                        Font = new Font("Roboto", 9),
+                        Font = new Font("Segoe UI", 9),
                         FlatStyle = FlatStyle.Flat,
                         Cursor = Cursors.Hand
                     };
@@ -811,8 +854,8 @@ namespace OmniSight.UI.Forms
                     // Điểm
                     Label lblScore = new Label
                     {
-                        Text = $"⭐ Điểm: {studentSubmission.Score}/10",
-                        Font = new Font("Roboto", 14, FontStyle.Bold),
+                        Text = $"Điểm: {studentSubmission.Score}/10",
+                        Font = new Font("Segoe UI", 14, FontStyle.Bold),
                         ForeColor = studentSubmission.Score >= 7 ? Color.Green : Color.Orange,
                         AutoSize = true,
                         Location = new Point(10, 8)
@@ -824,7 +867,7 @@ namespace OmniSight.UI.Forms
                     Label lblGradeLevel = new Label
                     {
                         Text = gradeLevel,
-                        Font = new Font("Roboto", 10),
+                        Font = new Font("Segoe UI", 10),
                         ForeColor = Color.Gray,
                         AutoSize = true,
                         Location = new Point(lblScore.Right + 20, 12)
@@ -839,8 +882,8 @@ namespace OmniSight.UI.Forms
                     {
                         Label lblFeedbackTitle = new Label
                         {
-                            Text = "💬 Phản hồi từ giáo viên:",
-                            Font = new Font("Roboto", 10, FontStyle.Bold),
+                            Text = "Phản hồi từ giáo viên:",
+                            Font = new Font("Segoe UI", 10, FontStyle.Bold),
                             AutoSize = true,
                             Location = new Point(10, currentY)
                         };
@@ -850,12 +893,12 @@ namespace OmniSight.UI.Forms
                         Label lblFeedback = new Label
                         {
                             Text = studentSubmission.Feedback,
-                            Font = new Font("Roboto", 9),
+                            Font = new Font("Segoe UI", 9),
                             AutoSize = true,
                             MaximumSize = new Size(card.Width - 40, 0),
                             Location = new Point(10, currentY),
-                            ForeColor = Color.DarkBlue,
-                            BackColor = Color.FromArgb(230, 245, 255),
+                            ForeColor = _primaryTextColor,
+                            BackColor = _secondaryCardBackgroundColor,
                             Padding = new Padding(10)
                         };
                         card.Controls.Add(lblFeedback);
@@ -867,8 +910,8 @@ namespace OmniSight.UI.Forms
                     // Chưa được chấm
                     Label lblNotGraded = new Label
                     {
-                        Text = "⏳ Bài của bạn chưa được chấm điểm",
-                        Font = new Font("Roboto", 10, FontStyle.Italic),
+                        Text = "Bài của bạn chưa được chấm điểm",
+                        Font = new Font("Segoe UI", 10, FontStyle.Italic),
                         ForeColor = Color.Orange,
                         AutoSize = true,
                         Location = new Point(10, currentY)
@@ -930,7 +973,7 @@ namespace OmniSight.UI.Forms
                 Minimum = 0,
                 DecimalPlaces = 1,
                 Increment = 0.5m,
-                Font = new Font("Roboto", 11)
+                Font = new Font("Segoe UI", 11)
             };
 
             // Dùng MultiLineTextBox của Material và tận dụng tính năng Hint (không cần Label rườm rà)
@@ -946,7 +989,7 @@ namespace OmniSight.UI.Forms
             // Nút Lưu (Dùng màu nổi bật)
             MaterialSkin.Controls.MaterialButton okButton = new MaterialSkin.Controls.MaterialButton()
             {
-                Text = "💾 LƯU ĐIỂM",
+                Text = "LƯU ĐIỂM",
                 Left = 180,
                 Top = 280,
                 AutoSize = true,
@@ -959,7 +1002,7 @@ namespace OmniSight.UI.Forms
             // Nút Hủy (Dùng dạng viền)
             MaterialSkin.Controls.MaterialButton cancelButton = new MaterialSkin.Controls.MaterialButton()
             {
-                Text = "❌ HỦY",
+                Text = "HỦY",
                 Left = 330,
                 Top = 280,
                 AutoSize = true,
@@ -1008,7 +1051,7 @@ namespace OmniSight.UI.Forms
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
-                BackColor = Color.FromArgb(245, 245, 245),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -1016,7 +1059,8 @@ namespace OmniSight.UI.Forms
             Label lblTitle = new Label
             {
                 Text = assignment.Title ?? "Không có tiêu đề",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
@@ -1028,7 +1072,8 @@ namespace OmniSight.UI.Forms
             Label lblDescription = new Label
             {
                 Text = assignment.Description ?? "Không có mô tả",
-                Font = new Font("Roboto", 10),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 MaximumSize = new Size(card.Width - 200, 0), // Trừ hao nhiều hơn để không chạm nút
                 Location = new Point(10, currentY)
@@ -1042,8 +1087,8 @@ namespace OmniSight.UI.Forms
             Label lblDueDate = new Label
             {
                 Text = dueText,
-                Font = new Font("Roboto", 9, FontStyle.Italic),
-                ForeColor = assignment.DueDate.HasValue && assignment.DueDate < DateTime.Now ? Color.Red : Color.Gray,
+                Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                ForeColor = assignment.DueDate.HasValue && assignment.DueDate < DateTime.Now ? Color.Red : _secondaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, currentY)
             };
@@ -1056,14 +1101,14 @@ namespace OmniSight.UI.Forms
             {
                 Button btnOpenLink = new Button
                 {
-                    Text = "📎 Mở tài nguyên",
+                    Text = "Mở tài nguyên",
                     AutoSize = false,
                     Width = 120,
                     Height = 30,
                     Location = new Point(10, currentY),
                     BackColor = Color.FromArgb(33, 150, 243),
                     ForeColor = Color.White,
-                    Font = new Font("Roboto", 9, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
                     FlatStyle = FlatStyle.Flat,
                     Cursor = Cursors.Hand
                 };
@@ -1077,7 +1122,7 @@ namespace OmniSight.UI.Forms
             {
                 Button btnEdit = new Button
                 {
-                    Text = "✏️ Sửa",
+                    Text = "Sửa",
                     Width = 70,
                     Height = 30,
                     Location = new Point(card.Width - 180, lblDueDate.Top),
@@ -1097,14 +1142,14 @@ namespace OmniSight.UI.Forms
 
                 Button btnDelete = new Button
                 {
-                    Text = "🗑️ Xoá",
+                    Text = "Xóa",
                     AutoSize = false,
                     Width = 80,
                     Height = 30,
                     Location = new Point(card.Width - 100, lblDueDate.Top),
                     BackColor = Color.FromArgb(244, 67, 54),
                     ForeColor = Color.White,
-                    Font = new Font("Roboto", 9, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
                     FlatStyle = FlatStyle.Flat,
                     Cursor = Cursors.Hand
                 };
@@ -1120,9 +1165,9 @@ namespace OmniSight.UI.Forms
                     // ĐÃ NỘP BÀI
                     Label lblStatus = new Label
                     {
-                        Text = $"✅ Đã nộp: {mySubmission.SubmittedAt:dd/MM HH:mm}",
+                        Text = $"Đã nộp: {mySubmission.SubmittedAt:dd/MM HH:mm}",
                         ForeColor = Color.Green,
-                        Font = new Font("Roboto", 9, FontStyle.Bold),
+                        Font = new Font("Segoe UI", 9, FontStyle.Bold),
                         AutoSize = true,
                         Location = new Point(10, currentY)
                     };
@@ -1150,7 +1195,7 @@ namespace OmniSight.UI.Forms
                         // QUÁ HẠN
                         Label lblExpired = new Label
                         {
-                            Text = "🔴 Đã hết hạn nộp bài",
+                            Text = "Đã hết hạn nộp bài",
                             ForeColor = Color.Red,
                             AutoSize = true,
                             Location = new Point(10, currentY)
@@ -1163,7 +1208,7 @@ namespace OmniSight.UI.Forms
                         // CÒN HẠN -> HIỆN NÚT NỘP BÀI
                         Button btnSubmit = new Button
                         {
-                            Text = "📤 NỘP BÀI",
+                            Text = "NỘP BÀI",
                             Width = 120,
                             Height = 35,
                             Location = new Point(10, currentY),
@@ -1265,11 +1310,11 @@ namespace OmniSight.UI.Forms
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = Color.White
+                BackColor = _pageBackgroundColor
             };
 
-            Label label = new Label() { Left = 20, Top = 20, Text = "Dán link bài làm (Google Drive/URL):", Width = 350, Font = new Font("Roboto", 10) };
-            TextBox textBox = new TextBox() { Left = 20, Top = 50, Width = 390, Font = new Font("Roboto", 10) };
+            Label label = new Label() { Left = 20, Top = 20, Text = "Dán link bài làm (Google Drive/URL):", Width = 350, Font = new Font("Segoe UI", 10), ForeColor = _primaryTextColor };
+            TextBox textBox = new TextBox() { Left = 20, Top = 50, Width = 390, Font = new Font("Segoe UI", 10) };
 
             Button okButton = new Button()
             {
@@ -1362,41 +1407,79 @@ namespace OmniSight.UI.Forms
                 // Add title
                 Label lblTitle = new Label
                 {
-                    Text = "👥 Danh sách thành viên lớp học",
-                    Font = new Font("Roboto", 14, FontStyle.Bold),
+                    Text = "Danh sách thành viên lớp học",
+                    Font = new Font("Segoe UI", 14, FontStyle.Bold),
                     AutoSize = true,
                     Padding = new Padding(10),
                     Margin = new Padding(5, 5, 5, 15)
                 };
                 flpMembers.Controls.Add(lblTitle);
 
+                var txtSearch = new TextBox
+                {
+                    Width = Math.Max(360, flpMembers.Width - 50),
+                    Font = new Font("Segoe UI", 10),
+                    BorderStyle = BorderStyle.FixedSingle,
+                    PlaceholderText = "Tìm học sinh theo tên hoặc email...",
+                    Margin = new Padding(10, 0, 10, 15),
+                    Text = _memberSearchKeyword
+                };
+                txtSearch.TextChanged += (s, e) =>
+                {
+                    _memberSearchKeyword = txtSearch.Text.Trim();
+                    ApplyMemberFilter();
+                };
+                flpMembers.Controls.Add(txtSearch);
+
                 var members = await _classService.GetClassMembersAsync(_classId);
+                _allMembers = members ?? new List<OmniSight.Core.Entities.ClassMember>();
 
-                if (members == null || members.Count == 0)
-                {
-                    flpMembers.Controls.Add(new Label
-                    {
-                        Text = "Chưa có thành viên nào trong lớp này.",
-                        AutoSize = true,
-                        Padding = new Padding(10),
-                        ForeColor = Color.Gray
-                    });
-                    flpMembers.PerformLayout();
-                    return;
-                }
-
-                // Display members
-                foreach (var member in members)
-                {
-                    var memberCard = CreateMemberCard(member);
-                    flpMembers.Controls.Add(memberCard);
-                }
-
+                ApplyMemberFilter();
                 flpMembers.PerformLayout();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Lỗi tải danh sách thành viên: " + ex.Message);
+            }
+        }
+
+        private void ApplyMemberFilter()
+        {
+            // Keep title + search box, remove old member cards/messages.
+            while (flpMembers.Controls.Count > 2)
+            {
+                var ctrl = flpMembers.Controls[2];
+                flpMembers.Controls.RemoveAt(2);
+                ctrl.Dispose();
+            }
+
+            IEnumerable<OmniSight.Core.Entities.ClassMember> filtered = _allMembers;
+            if (!string.IsNullOrWhiteSpace(_memberSearchKeyword))
+            {
+                filtered = filtered.Where(m =>
+                    (m.Student?.FullName ?? string.Empty).Contains(_memberSearchKeyword, StringComparison.OrdinalIgnoreCase)
+                    || (m.Student?.Email ?? string.Empty).Contains(_memberSearchKeyword, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var list = filtered.ToList();
+            if (list.Count == 0)
+            {
+                flpMembers.Controls.Add(new Label
+                {
+                    Text = string.IsNullOrWhiteSpace(_memberSearchKeyword)
+                        ? "Chưa có thành viên nào trong lớp này."
+                        : "Không tìm thấy học sinh phù hợp.",
+                    AutoSize = true,
+                    Padding = new Padding(10),
+                    ForeColor = Color.Gray
+                });
+                return;
+            }
+
+            foreach (var member in list)
+            {
+                var memberCard = CreateMemberCard(member);
+                flpMembers.Controls.Add(memberCard);
             }
         }
 
@@ -1408,7 +1491,7 @@ namespace OmniSight.UI.Forms
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
-                BackColor = Color.FromArgb(245, 245, 245),
+                BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -1416,8 +1499,9 @@ namespace OmniSight.UI.Forms
             string studentName = member.Student?.FullName ?? "Không xác định";
             Label lblName = new Label
             {
-                Text = $"👤 {studentName}",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
+                Text = studentName,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = _primaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, 10)
             };
@@ -1429,9 +1513,9 @@ namespace OmniSight.UI.Forms
             string email = member.Student?.Email ?? "Không có email";
             Label lblEmail = new Label
             {
-                Text = $"📧 {email}",
-                Font = new Font("Roboto", 9),
-                ForeColor = Color.Gray,
+                Text = $"Email: {email}",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = _secondaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, currentY)
             };
@@ -1441,9 +1525,9 @@ namespace OmniSight.UI.Forms
             // Join date
             Label lblJoinDate = new Label
             {
-                Text = $"📅 Tham gia: {member.JoinedAt:dd/MM/yyyy}",
-                Font = new Font("Roboto", 9),
-                ForeColor = Color.Gray,
+                Text = $"Tham gia: {member.JoinedAt:dd/MM/yyyy}",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = _secondaryTextColor,
                 AutoSize = true,
                 Location = new Point(10, currentY)
             };
@@ -1605,3 +1689,4 @@ namespace OmniSight.UI.Forms
         }
     }
 }
+

@@ -230,7 +230,7 @@ namespace OmniSight.UI.Forms
             // 
             lblDueDate.AutoSize = true;
             lblDueDate.Depth = 0;
-            lblDueDate.Font = new Font("Roboto", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
+            lblDueDate.Font = new Font("Segoe UI", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
             lblDueDate.Location = new Point(18, 214);
             lblDueDate.MouseState = MaterialSkin.MouseState.HOVER;
             lblDueDate.Name = "lblDueDate";
@@ -270,7 +270,7 @@ namespace OmniSight.UI.Forms
             txtDriveLink.AnimateReadOnly = false;
             txtDriveLink.BorderStyle = BorderStyle.None;
             txtDriveLink.Depth = 0;
-            txtDriveLink.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
+            txtDriveLink.Font = new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtDriveLink.Hint = "Dán Link Google Drive sản phẩm vào đây...";
             txtDriveLink.LeadingIcon = null;
             txtDriveLink.Location = new Point(18, 79);
@@ -289,7 +289,7 @@ namespace OmniSight.UI.Forms
             txtAssignmentName.AnimateReadOnly = false;
             txtAssignmentName.BorderStyle = BorderStyle.None;
             txtAssignmentName.Depth = 0;
-            txtAssignmentName.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
+            txtAssignmentName.Font = new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtAssignmentName.Hint = "Tên bài tập...";
             txtAssignmentName.LeadingIcon = null;
             txtAssignmentName.Location = new Point(18, 34);
@@ -306,7 +306,7 @@ namespace OmniSight.UI.Forms
             // 
             lblAssignmentTitle.AutoSize = true;
             lblAssignmentTitle.Depth = 0;
-            lblAssignmentTitle.Font = new Font("Roboto", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
+            lblAssignmentTitle.Font = new Font("Segoe UI", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
             lblAssignmentTitle.Location = new Point(18, 11);
             lblAssignmentTitle.MouseState = MaterialSkin.MouseState.HOVER;
             lblAssignmentTitle.Name = "lblAssignmentTitle";
@@ -496,7 +496,7 @@ namespace OmniSight.UI.Forms
             materialTabSelector1.CharacterCasing = MaterialSkin.Controls.MaterialTabSelector.CustomCharacterCasing.Normal;
             materialTabSelector1.Depth = 0;
             materialTabSelector1.Dock = DockStyle.Top;
-            materialTabSelector1.Font = new Font("Roboto", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
+            materialTabSelector1.Font = new Font("Segoe UI", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
             materialTabSelector1.Location = new Point(0, 0);
             materialTabSelector1.MouseState = MaterialSkin.MouseState.HOVER;
             materialTabSelector1.Name = "materialTabSelector1";

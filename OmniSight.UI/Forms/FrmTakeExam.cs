@@ -153,7 +153,7 @@ namespace OmniSight.UI.Forms
 
             _lblMonitoringStatus = new Label
             {
-                Text = "🔴  ĐANG GIÁM SÁT",
+                Text = "ĐANG GIÁM SÁT",
                 Font = new Font("Segoe UI Semibold", 9),
                 ForeColor = Color.FromArgb(198, 40, 40),
                 BackColor = Color.FromArgb(255, 235, 235),
@@ -240,7 +240,7 @@ namespace OmniSight.UI.Forms
             btnNext.Location = new Point(150, 12);
             btnNext.Click += BtnNext_Click;
 
-            btnSubmit = CreateNavButton("📤  NỘP BÀI", Color.FromArgb(198, 40, 40), Color.White);
+            btnSubmit = CreateNavButton("NỘP BÀI", Color.FromArgb(198, 40, 40), Color.White);
             btnSubmit.Location = new Point(680, 12);
             btnSubmit.Width = 130;
             btnSubmit.Font = new Font("Segoe UI Semibold", 11);
@@ -380,8 +380,8 @@ namespace OmniSight.UI.Forms
                     "- Vắng mặt/Có người lạ/Nhìn ra ngoài/Cúi mặt/Liếc mắt > 3 giây: Cảnh báo.\n" +
                     "- Có tiếng ồn > 10 giây: Cảnh báo.\n" +
                     "- Chuyển Tab/Mở ứng dụng khác: Cảnh báo.\n\n" +
-                    (_violationCount > 0 ? $"⚠️ BẠN ĐÃ CÓ {_violationCount}/3 CẢNH BÁO TỪ TRƯỚC.\n\n" : "") +
-                    "⚠️ NẾU VI PHẠM QUÁ 3 LẦN, HỆ THỐNG SẼ TỰ ĐỘNG THU BÀI.\n\nBạn có đồng ý không?",
+                    (_violationCount > 0 ? $"BẠN ĐÃ CÓ {_violationCount}/3 CẢNH BÁO TỪ TRƯỚC.\n\n" : "") +
+                    "NẾU VI PHẠM QUÁ 3 LẦN, HỆ THỐNG SẼ TỰ ĐỘNG THU BÀI.\n\nBạn có đồng ý không?",
                     "Xác nhận & Thỏa thuận",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
@@ -398,7 +398,7 @@ namespace OmniSight.UI.Forms
                     return;
                 }
 
-                _lblMonitoringStatus.Text = "🔵  ĐANG XÁC THỰC KHUÔN MẶT...";
+                _lblMonitoringStatus.Text = "ĐANG XÁC THỰC KHUÔN MẶT...";
                 _lblMonitoringStatus.ForeColor = Color.FromArgb(21, 101, 192);
                 _lblMonitoringStatus.BackColor = Color.FromArgb(232, 240, 254);
 
@@ -479,7 +479,7 @@ namespace OmniSight.UI.Forms
 
         private void UpdateMonitoringLabel()
         {
-            _lblMonitoringStatus.Text = "🔴  ĐANG GIÁM SÁT";
+            _lblMonitoringStatus.Text = "ĐANG GIÁM SÁT";
             _lblMonitoringStatus.ForeColor = Color.FromArgb(198, 40, 40);
             _lblMonitoringStatus.BackColor = Color.FromArgb(255, 235, 235);
             lblViolationBar.Text = $"Vi phạm: {_violationCount} / 3";
@@ -501,7 +501,7 @@ namespace OmniSight.UI.Forms
                 _antiCheatTimer?.Stop();
 
                 _violationCount++;
-                _lblMonitoringStatus.Text = $"⚠️  CẢNH BÁO ({_violationCount}/3)";
+                _lblMonitoringStatus.Text = $"CẢNH BÁO ({_violationCount}/3)";
                 _lblMonitoringStatus.ForeColor = Color.FromArgb(230, 100, 0);
                 _lblMonitoringStatus.BackColor = Color.FromArgb(255, 245, 225);
                 lblViolationBar.Text = $"Vi phạm: {_violationCount} / 3";
