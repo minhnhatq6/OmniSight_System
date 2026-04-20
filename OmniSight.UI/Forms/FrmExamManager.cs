@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -51,8 +51,8 @@ namespace OmniSight.UI.Forms
             // Header
             var lblHeader = new MaterialLabel
             {
-                Text = "🔄 Chuyển Hướng Giao Diện",
-                Font = new Font("Roboto", 14, FontStyle.Bold),
+                Text = "Chuyển Hướng Giao Diện",
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 AutoSize = true,
                 Margin = new Padding(0, 0, 0, 10)
             };
@@ -70,7 +70,7 @@ namespace OmniSight.UI.Forms
             // Redirect button
             btnOpen = new MaterialButton
             {
-                Text = "📂 Mở Giao Diện Quản Lý Bài Thi",
+                Text = "Mở Giao Diện Quản Lý Bài Thi",
                 Width = 200,
                 Height = 40,
                 Margin = new Padding(0, 0, 10, 0),
@@ -81,7 +81,7 @@ namespace OmniSight.UI.Forms
             // Cancel button
             var btnCancel = new MaterialButton
             {
-                Text = "❌ Đóng",
+                Text = "Đóng",
                 Width = 100,
                 Height = 40,
                 Margin = new Padding(10, 0, 0, 0),
@@ -144,3 +144,4 @@ namespace OmniSight.UI.Forms
         public override string ToString() => Text;
     }
 }
+

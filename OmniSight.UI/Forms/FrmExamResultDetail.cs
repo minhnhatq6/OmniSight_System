@@ -1,4 +1,4 @@
-using MaterialSkin.Controls;
+﻿using MaterialSkin.Controls;
 using OmniSight.Core.Entities;
 using OmniSight.Services;
 using System;
@@ -50,10 +50,10 @@ namespace OmniSight.UI.Forms
             this.Height = 750;
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = Color.White;
-            this.Font = new Font("Roboto", 10);
+            this.Font = new Font("Segoe UI", 10);
 
             // ==========================================
-            // 1. HEADER - Thông tin tổng quan
+            // 1. HEADER - Thông tin t�.ng quan
             // ==========================================
             var pnlHeader = new Panel
             {
@@ -65,8 +65,8 @@ namespace OmniSight.UI.Forms
 
             lblExamName = new MaterialLabel
             {
-                Text = $"📋  {_exam.Title}",
-                Font = new Font("Roboto", 15, FontStyle.Bold),
+                Text = _exam.Title,
+                Font = new Font("Segoe UI", 15, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
                 Location = new Point(20, 10)
@@ -74,8 +74,8 @@ namespace OmniSight.UI.Forms
 
             lblStudentName = new MaterialLabel
             {
-                Text = $"👤  {_student?.FullName ?? "Unknown"}",
-                Font = new Font("Roboto", 11),
+                Text = $"Học sinh: {_student?.FullName ?? "Unknown"}",
+                Font = new Font("Segoe UI", 11),
                 ForeColor = Color.FromArgb(220, 235, 255),
                 AutoSize = true,
                 Location = new Point(20, 45)
@@ -83,8 +83,8 @@ namespace OmniSight.UI.Forms
 
             lblScore = new MaterialLabel
             {
-                Text = $"🎯  {_examResult?.Score:F1} / 10",
-                Font = new Font("Roboto", 13, FontStyle.Bold),
+                Text = $"Điểm: {_examResult?.Score:F1} / 10",
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 235, 59),
                 AutoSize = true,
                 Location = new Point(20, 75)
@@ -92,8 +92,8 @@ namespace OmniSight.UI.Forms
 
             lblTimeInfo = new MaterialLabel
             {
-                Text = $"⏱️  {_examResult?.StartedAt:HH:mm dd/MM/yyyy}  →  {_examResult?.CompletedAt:HH:mm dd/MM/yyyy}",
-                Font = new Font("Roboto", 10),
+                Text = $"Thời gian: {_examResult?.StartedAt:HH:mm dd/MM/yyyy} - {_examResult?.CompletedAt:HH:mm dd/MM/yyyy}",
+                Font = new Font("Segoe UI", 10),
                 ForeColor = Color.FromArgb(200, 225, 255),
                 AutoSize = true,
                 Location = new Point(500, 75)
@@ -122,7 +122,7 @@ namespace OmniSight.UI.Forms
 
             btnExportExcel = new MaterialButton
             {
-                Text = "📊 XUẤT EXCEL",
+                Text = "XUẤT EXCEL",
                 Location = new Point(15, 10),
                 AutoSize = true,
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
@@ -131,7 +131,7 @@ namespace OmniSight.UI.Forms
 
             btnExportPDF = new MaterialButton
             {
-                Text = "📄 XUẤT PDF",
+                Text = "XUẤT PDF",
                 Location = new Point(155, 10),
                 AutoSize = true,
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
@@ -140,7 +140,7 @@ namespace OmniSight.UI.Forms
 
             btnClose = new MaterialButton
             {
-                Text = "ĐÓNG",
+                Text = "ĐÚNG",
                 Location = new Point(820, 10),
                 AutoSize = true,
                 Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
@@ -151,7 +151,7 @@ namespace OmniSight.UI.Forms
             pnlButtons.Controls.AddRange(new Control[] { btnExportExcel, btnClose });
 
             // ==========================================
-            // 3. BODY - Chia đôi: Bảng câu hỏi + Vi phạm
+            // 3. BODY - Chia �'ôi: Bảng câu hỏi + Vi phạm
             // ==========================================
             var pnlBody = new Panel
             {
@@ -160,7 +160,7 @@ namespace OmniSight.UI.Forms
                 BackColor = Color.White
             };
 
-            // -- PHẦN DƯỚI: Vi phạm (chiều cao cố định) --
+            // -- PHẦN DƯ�sI: Vi phạm (chiều cao c�' �'�<nh) --
             var pnlViolation = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -170,8 +170,8 @@ namespace OmniSight.UI.Forms
 
             var lblViolationTitle = new Label
             {
-                Text = "⚠️  Nhật Ký Vi Phạm",
-                Font = new Font("Roboto", 11, FontStyle.Bold),
+                Text = "Nhật Ký Vi Phạm",
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Color.FromArgb(211, 47, 47),
                 Dock = DockStyle.Top,
                 Height = 30,
@@ -197,13 +197,13 @@ namespace OmniSight.UI.Forms
                 {
                     BackColor = Color.FromArgb(255, 243, 243),
                     ForeColor = Color.FromArgb(183, 28, 28),
-                    Font = new Font("Roboto", 10, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     Padding = new Padding(5, 0, 0, 0)
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Font = new Font("Roboto", 10),
+                    Font = new Font("Segoe UI", 10),
                     Padding = new Padding(5, 0, 0, 0),
                     SelectionBackColor = Color.FromArgb(255, 235, 235),
                     SelectionForeColor = Color.Black
@@ -242,7 +242,7 @@ namespace OmniSight.UI.Forms
             pnlViolation.Controls.Add(dgvViolations);
             pnlViolation.Controls.Add(lblViolationTitle);
 
-            // Đường kẻ ngăn cách 2 bảng
+            // Đường kẻ ng�fn cách 2 bảng
             var separator = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -250,11 +250,11 @@ namespace OmniSight.UI.Forms
                 BackColor = Color.White
             };
 
-            // -- PHẦN TRÊN: Bảng câu hỏi (lấp đầy còn lại) --
+            // -- PHẦN TR�SN: Bảng câu hỏi (lấp �'ầy còn lại) --
             var lblAnswerTitle = new Label
             {
-                Text = "📝  Chi Tiết Câu Trả Lời",
-                Font = new Font("Roboto", 11, FontStyle.Bold),
+                Text = "Chi Tiết Câu Trả Lời",
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Color.FromArgb(25, 118, 210),
                 Dock = DockStyle.Top,
                 Height = 30,
@@ -280,13 +280,13 @@ namespace OmniSight.UI.Forms
                 {
                     BackColor = Color.FromArgb(227, 242, 253),
                     ForeColor = Color.FromArgb(13, 71, 161),
-                    Font = new Font("Roboto", 10, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     Padding = new Padding(5, 0, 0, 0)
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Font = new Font("Roboto", 10),
+                    Font = new Font("Segoe UI", 10),
                     Padding = new Padding(5, 0, 0, 0),
                     SelectionBackColor = Color.FromArgb(227, 242, 253),
                     SelectionForeColor = Color.Black
@@ -310,7 +310,7 @@ namespace OmniSight.UI.Forms
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Roboto", 10, FontStyle.Bold)
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold)
                     }
                 },
                 new DataGridViewTextBoxColumn
@@ -329,7 +329,7 @@ namespace OmniSight.UI.Forms
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Roboto", 11, FontStyle.Bold)
+                        Font = new Font("Segoe UI", 11, FontStyle.Bold)
                     }
                 },
                 new DataGridViewTextBoxColumn
@@ -341,7 +341,7 @@ namespace OmniSight.UI.Forms
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Roboto", 11, FontStyle.Bold),
+                        Font = new Font("Segoe UI", 11, FontStyle.Bold),
                         ForeColor = Color.FromArgb(46, 125, 50)
                     }
                 },
@@ -354,7 +354,7 @@ namespace OmniSight.UI.Forms
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Roboto", 10, FontStyle.Bold)
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold)
                     }
                 }
             );
@@ -373,12 +373,12 @@ namespace OmniSight.UI.Forms
         }
         private void DgvViolations_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Chỉ xử lý khi bấm vào cột "Bằng Chứng" và không phải dòng header
+            // Ch�? xử lý khi bấm vào c�Tt "Bằng Chứng" và không phải dòng header
             if (e.RowIndex >= 0 && e.ColumnIndex == dgvViolations.Columns["ImageUrl"].Index)
             {
                 string url = dgvViolations.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
 
-                // Mở link bằng trình duyệt mặc định
+                // M�Y link bằng trình duy�?t mặc �'�<nh
                 if (!string.IsNullOrEmpty(url) && url.StartsWith("http"))
                 {
                     try
@@ -399,17 +399,17 @@ namespace OmniSight.UI.Forms
                 // Load questions
                 _questions = await _examService.GetQuestionsByExamIdAsync(_exam.ExamId);
 
-                // ===== ĐOẠN CODE ĐỌC ĐÁP ÁN ĐÃ ĐƯỢC SỬA =====
+                // ===== ĐOẠN CODE Đ�OC ĐÁP ÁN Đ�f ĐƯỢC SỬA =====
                 if (!string.IsNullOrEmpty(_examResult.AnswersData))
                 {
                     try
                     {
-                        // Sửa int thành string để khớp với JSON
+                        // Sửa int thành string �'�f kh�>p v�>i JSON
                         _studentAnswers = JsonSerializer.Deserialize<Dictionary<string, string>>(_examResult.AnswersData);
                     }
-                    catch (JsonException) // Bắt lỗi cụ thể để biết lỗi do JSON
+                    catch (JsonException) // Bắt l�-i cụ th�f �'�f biết l�-i do JSON
                     {
-                        // Nếu JSON bị lỗi, coi như học sinh không trả lời câu nào
+                        // Nếu JSON b�< l�-i, coi như học sinh không trả lời câu nào
                         _studentAnswers = new Dictionary<string, string>();
                     }
                 }
@@ -417,7 +417,7 @@ namespace OmniSight.UI.Forms
                 {
                     _studentAnswers = new Dictionary<string, string>();
                 }
-                // Đổ dữ liệu vi phạm vào bảng dgvViolations
+                // Đ�. dữ li�?u vi phạm vào bảng dgvViolations
                 if (_examResult.ViolationLogs != null && _examResult.ViolationLogs.Any())
                 {
                     var violationData = _examResult.ViolationLogs.Select(v => new
@@ -441,7 +441,7 @@ namespace OmniSight.UI.Forms
        
         private void RefreshAnswersGrid()
         {
-            // Đảm bảo dgv không bị kẹt dữ liệu cũ
+            // Đảm bảo dgv không b�< kẹt dữ li�?u cũ
             dgvAnswers.DataSource = null;
 
             if (_questions == null) return;
@@ -451,35 +451,35 @@ namespace OmniSight.UI.Forms
             {
                 var question = _questions[i];
                 string studentAnswer = "Không trả lời";
-                string status = "❌ Sai";
+                string status = "Sai";
 
-                // Kiểm tra an toàn: studentAnswers không null và có chứa ID (dạng chuỗi)
+                // Ki�fm tra an toàn: studentAnswers không null và có chứa ID (dạng chu�-i)
                 if (_studentAnswers != null && _studentAnswers.ContainsKey(question.QuestionId.ToString()))
                 {
                     studentAnswer = _studentAnswers[question.QuestionId.ToString()];
 
-                    // So sánh đáp án (nên Trim để tránh khoảng trắng thừa)
+                    // So sánh �'áp án (nên Trim �'�f tránh khoảng trắng thừa)
                     if (string.Equals(studentAnswer?.Trim(), question.CorrectOption?.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
-                        status = "✅ Đúng";
+                        status = "Đúng";
                     }
                 }
 
-                // Tạo đối tượng dynamic với tên thuộc tính KHỚP HOÀN TOÀN với DataPropertyName ở Bước 1
+                // Tạo �'�'i tượng dynamic v�>i tên thu�Tc tính KH�sP HO�?N TO�?N v�>i DataPropertyName �Y Bư�>c 1
                 data.Add(new
                 {
                     QuestionId = question.QuestionId,
                     QuestionNum = i + 1,
                     Content = question.Content,
                     StudentAnswer = studentAnswer,
-                    CorrectAnswer = question.CorrectOption, // Tên này phải khớp DataPropertyName
+                    CorrectAnswer = question.CorrectOption, // Tên này phải kh�>p DataPropertyName
                     Status = status
                 });
             }
 
             dgvAnswers.DataSource = data;
 
-            // Tô màu cột Kết quả
+            // Tô màu c�Tt Kết quả
             foreach (DataGridViewRow row in dgvAnswers.Rows)
             {
                 var statusCell = row.Cells["Status"];
@@ -543,10 +543,10 @@ namespace OmniSight.UI.Forms
                     string studentAnswer = "Không trả lời";
                     string status = "Sai";
 
-                    // Thêm .ToString() để chuyển ID từ số sang chữ
+                    // Thêm .ToString() �'�f chuy�fn ID từ s�' sang chữ
                     if (_studentAnswers.ContainsKey(question.QuestionId.ToString()))
                     {
-                        // Thêm .ToString() ở đây nữa
+                        // Thêm .ToString() �Y �'ây nữa
                         studentAnswer = _studentAnswers[question.QuestionId.ToString()];
                         if (studentAnswer == question.CorrectOption)
                             status = "Đúng";
@@ -560,3 +560,4 @@ namespace OmniSight.UI.Forms
         }
     }
 }
+

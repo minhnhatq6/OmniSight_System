@@ -89,7 +89,7 @@
             // 
             lblHomeWelcome.AutoSize = true;
             lblHomeWelcome.Depth = 0;
-            lblHomeWelcome.Font = new Font("Roboto", 24F, FontStyle.Bold, GraphicsUnit.Pixel);
+            lblHomeWelcome.Font = new Font("Segoe UI", 24F, FontStyle.Bold, GraphicsUnit.Pixel);
             lblHomeWelcome.FontType = MaterialSkin.MaterialSkinManager.fontType.H5;
             lblHomeWelcome.Location = new Point(35, 30);
             lblHomeWelcome.MouseState = MaterialSkin.MouseState.HOVER;
@@ -114,7 +114,7 @@
 
             MaterialSkin.Controls.MaterialLabel lblClassTitle = new MaterialSkin.Controls.MaterialLabel
             {
-                Text = "📚 Danh sách lớp học của bạn",
+                Text = "Danh sách lớp học của bạn",
                 FontType = MaterialSkin.MaterialSkinManager.fontType.H6,
                 Location = new Point(0, 5),
                 AutoSize = true
@@ -230,7 +230,7 @@
 
             // Tạo thêm Label "Thông Tin Cơ Bản" bằng code cho đẹp
             MaterialSkin.Controls.MaterialLabel lblProfileInfo = new MaterialSkin.Controls.MaterialLabel();
-            lblProfileInfo.Text = "👤 Thông Tin Cơ Bản";
+            lblProfileInfo.Text = "Thông Tin Cơ Bản";
             lblProfileInfo.FontType = MaterialSkin.MaterialSkinManager.fontType.H6;
             lblProfileInfo.Location = new Point(150, 50);
             lblProfileInfo.AutoSize = true;
@@ -246,7 +246,7 @@
             lblFaceIdTitle.Name = "lblFaceIdTitle";
             lblFaceIdTitle.Size = new Size(200, 19);
             lblFaceIdTitle.TabIndex = 8;
-            lblFaceIdTitle.Text = "📸 Thiết Lập Face ID";
+            lblFaceIdTitle.Text = "Thiết Lập Face ID";
             // 
             // picCamera
             // 
@@ -273,7 +273,7 @@
             btnStartCamera.NoAccentTextColor = Color.Empty;
             btnStartCamera.Size = new Size(160, 40);
             btnStartCamera.TabIndex = 6;
-            btnStartCamera.Text = "📹 BẬT CAMERA";
+            btnStartCamera.Text = "BẬT CAMERA";
             btnStartCamera.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined;
             btnStartCamera.UseAccentColor = false;
             btnStartCamera.UseVisualStyleBackColor = true;
@@ -293,7 +293,7 @@
             btnCaptureFace.NoAccentTextColor = Color.Empty;
             btnCaptureFace.Size = new Size(300, 40);
             btnCaptureFace.TabIndex = 7;
-            btnCaptureFace.Text = "🎯 QUÉT VÀ LƯU FACE ID";
+            btnCaptureFace.Text = "QUÉT VÀ LƯU FACE ID";
             btnCaptureFace.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
             btnCaptureFace.UseAccentColor = true;
             btnCaptureFace.UseVisualStyleBackColor = true;
@@ -313,7 +313,7 @@
             btnSaveProfile.NoAccentTextColor = Color.Empty;
             btnSaveProfile.Size = new Size(180, 40);
             btnSaveProfile.TabIndex = 4;
-            btnSaveProfile.Text = "💾 LƯU THAY ĐỔI";
+            btnSaveProfile.Text = "LƯU THAY ĐỔI";
             btnSaveProfile.Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained;
             btnSaveProfile.UseAccentColor = false;
             btnSaveProfile.UseVisualStyleBackColor = true;
@@ -324,7 +324,7 @@
             txtPhone.AnimateReadOnly = false;
             txtPhone.BorderStyle = BorderStyle.None;
             txtPhone.Depth = 0;
-            txtPhone.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
+            txtPhone.Font = new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtPhone.Hint = "Số điện thoại";
             txtPhone.LeadingIcon = null;
             txtPhone.Location = new Point(150, 180);
@@ -340,7 +340,7 @@
             txtFullName.AnimateReadOnly = false;
             txtFullName.BorderStyle = BorderStyle.None;
             txtFullName.Depth = 0;
-            txtFullName.Font = new Font("Roboto", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
+            txtFullName.Font = new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel);
             txtFullName.Hint = "Họ và tên";
             txtFullName.LeadingIcon = null;
             txtFullName.Location = new Point(150, 100);

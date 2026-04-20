@@ -1,4 +1,4 @@
-using Emgu.CV;
+﻿using Emgu.CV;
 using Emgu.CV.Structure;
 using MaterialSkin;
 using MaterialSkin.Controls;
@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniSight.Services;
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,8 @@ namespace OmniSight.UI.Forms
         private readonly IUserService _userService;
         private readonly IServiceProvider _serviceProvider;
         private bool _isLoggingOut = false;
+        private readonly List<(string DisplayName, string JoinCode, int ClassId)> _allClassItems = new();
+        private TextBox? _txtClassSearch;
         private float _currentZoom = 1.0f;
         private const float MIN_ZOOM = 0.7f;
         private const float MAX_ZOOM = 2.0f;
@@ -33,21 +36,158 @@ namespace OmniSight.UI.Forms
             _serviceProvider = serviceProvider;
             _faceAiService = faceAiService;
             this.Shown += MainForm_Shown;
-            // XÓA LoadClassList() khỏi constructor - gọi sau khi form load xong
+            this.Activated += MainForm_Activated;
+            // X�"A LoadClassList() khỏi constructor - gọi sau khi form load xong
 
             var materialSkinManager = MaterialSkinManager.Instance;
             materialSkinManager.AddFormToManage(this);
 
-            // Load cài đặt từ file
+            // Load cài �'ặt từ file
             var uiSettings = LoadUiSettings();
             materialSkinManager.Theme = uiSettings.isDark ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
             ApplyColorByIndex(uiSettings.colorIndex);
+            ConfigureClassListView();
         
         }   
 
+        private void ConfigureClassListView()
+        {
+            lvwClasses.OwnerDraw = true;
+            lvwClasses.FullRowSelect = true;
+            lvwClasses.HideSelection = false;
+            lvwClasses.GridLines = false;
+            lvwClasses.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            lvwClasses.Font = new Font("Segoe UI", 11f, FontStyle.Regular);
+
+            // Increase row height for a cleaner, less cramped table look.
+            lvwClasses.SmallImageList = new ImageList { ImageSize = new Size(1, 36) };
+
+            var dbProp = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            dbProp?.SetValue(lvwClasses, true, null);
+
+            lvwClasses.DrawColumnHeader += lvwClasses_DrawColumnHeader;
+            lvwClasses.DrawItem += lvwClasses_DrawItem;
+            lvwClasses.DrawSubItem += lvwClasses_DrawSubItem;
+            lvwClasses.Resize += (s, e) => UpdateClassListColumnWidths();
+            tabClasses.Resize += (s, e) => UpdateClassListColumnWidths();
+
+            SetupClassSearchBox();
+            UpdateClassListColumnWidths();
+        }
+
+        private void SetupClassSearchBox()
+        {
+            if (_txtClassSearch != null) return;
+
+            var searchPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 56,
+                Padding = new Padding(0, 10, 0, 10),
+                BackColor = Color.Transparent,
+                Name = "pnlClassSearch"
+            };
+
+            _txtClassSearch = new TextBox
+            {
+                Name = "txtClassSearch",
+                PlaceholderText = "Tìm lớp theo tên hoặc mã tham gia...",
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                BorderStyle = BorderStyle.FixedSingle,
+                Width = 420,
+                Height = 34,
+                Location = new Point(0, 10)
+            };
+            _txtClassSearch.TextChanged += (s, e) => ApplyClassListFilter();
+
+            searchPanel.Controls.Add(_txtClassSearch);
+            tabClasses.Controls.Add(searchPanel);
+            tabClasses.Controls.SetChildIndex(searchPanel, 1);
+        }
+
+        private void UpdateClassListColumnWidths()
+        {
+            if (lvwClasses.Columns.Count < 2) return;
+
+            var width = Math.Max(300, lvwClasses.ClientSize.Width - 4);
+            var joinCodeWidth = 220;
+            var classNameWidth = Math.Max(260, width - joinCodeWidth);
+
+            lvwClasses.Columns[0].Width = classNameWidth;
+            lvwClasses.Columns[1].Width = joinCodeWidth;
+        }
+
+        private void lvwClasses_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            using var bg = new SolidBrush(Color.FromArgb(245, 247, 250));
+            using var line = new Pen(Color.FromArgb(224, 229, 236));
+            e.Graphics.FillRectangle(bg, e.Bounds);
+            e.Graphics.DrawLine(line, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+
+            var textRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top, e.Bounds.Width - 12, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.Header.Text,
+                new Font("Segoe UI Semibold", 10.5f),
+                textRect,
+                Color.FromArgb(66, 66, 66),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        private void lvwClasses_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            // DrawSubItem handles the full row drawing.
+        }
+
+        private void lvwClasses_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            var rowColor = Color.White;
+
+            using var bg = new SolidBrush(rowColor);
+            using var grid = new Pen(Color.FromArgb(236, 239, 244));
+            e.Graphics.FillRectangle(bg, e.Bounds);
+            e.Graphics.DrawLine(grid, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+
+            var textColor = Color.FromArgb(33, 33, 33);
+            var textRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top, e.Bounds.Width - 14, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.SubItem.Text,
+                new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                textRect,
+                textColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        private void ApplyClassListFilter()
+        {
+            var keyword = _txtClassSearch?.Text?.Trim();
+            var source = _allClassItems.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                source = source.Where(i =>
+                    i.DisplayName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                    || i.JoinCode.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+            }
+
+            lvwClasses.BeginUpdate();
+            lvwClasses.Items.Clear();
+
+            foreach (var item in source)
+            {
+                var row = new ListViewItem(item.DisplayName);
+                row.SubItems.Add(item.JoinCode);
+                row.Tag = item.ClassId;
+                lvwClasses.Items.Add(row);
+            }
+
+            lvwClasses.EndUpdate();
+        }
+
         private void btnOpenExamManager_Click(object sender, EventArgs e)
         {
-            // 1. Kiểm tra quyền giáo viên trước
+            // 1. Ki�fm tra quyền giáo viên trư�>c
             var user = _authService.CurrentUser;
             if (user == null) return;
 
@@ -62,7 +202,7 @@ namespace OmniSight.UI.Forms
             var examService = _serviceProvider.GetRequiredService<ExamService>();
             var classService = _serviceProvider.GetRequiredService<ClassService>();
 
-            // 3. Hiển thị Form quản lý bài thi
+            // 3. Hi�fn th�< Form quản lý bài thi
             using (var frm = new FrmExamManagement(examService, classService, user.UserId))
             {
                 frm.ShowDialog(this);
@@ -79,13 +219,13 @@ namespace OmniSight.UI.Forms
 
             var user = _authService.CurrentUser;
 
-            // 1. Nếu là đăng nhập lần đầu, chỉ chuyển Tab (không hiện MessageBox ở đây)
+            // 1. Nếu là �'�fng nhập lần �'ầu, ch�? chuy�fn Tab (không hi�?n MessageBox �Y �'ây)
             if (StartAtProfile)
             {
                 materialTabControl1.SelectedTab = tabProfile;
             }
 
-            // 2. Đổ dữ liệu User lên giao diện
+            // 2. Đ�. dữ li�?u User lên giao di�?n
             if (user != null)
             {
                 lblHomeWelcome.Text = $"Chào mừng {user.FullName} đến với OmniSight!";
@@ -121,21 +261,64 @@ namespace OmniSight.UI.Forms
             }));
         }
 
-        // HÀM NÀY SẼ CHẠY SAU KHI FORM HIỆN LÊN HOÀN TOÀN
+        // H�?M N�?Y SẼ CHẠY SAU KHI FORM HI�?N L�SN HO�?N TO�?N
         private void MainForm_Shown(object sender, EventArgs e)
         {
             System.Diagnostics.Debug.WriteLine(">> [MAIN_SHOWN] Form đã hiển thị xong");
 
             if (StartAtProfile)
             {
-                // Lúc này Form đã vẽ xong hoàn toàn, gọi MessageBox sẽ không bị treo app
+                // Lúc này Form �'ã vẽ xong hoàn toàn, gọi MessageBox sẽ không b�< treo app
                 MessageBox.Show(this,
-                    "Chào mừng thành viên mới!\n\nBạn hãy dành ít giây để:\n1. Chọn Vai trò.\n2. Cài đặt Face ID.",
+                    "Chào mừng thành viên mới!\n\nBạn hãy dành ít giây để:\n1. Chọn vai trò.\n2. Cài đặt Face ID.",
                     "Hoàn tất hồ sơ",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
         }
+
+        private void MainForm_Activated(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated) return;
+            BeginInvoke(new MethodInvoker(NormalizeDashboardCardsAppearance));
+        }
+
+        private void NormalizeDashboardCardsAppearance()
+        {
+            if (flpDashboardCards == null) return;
+
+            foreach (Panel card in flpDashboardCards.Controls.OfType<Panel>())
+            {
+                if (card.Tag is Color originalColor)
+                {
+                    card.BackColor = originalColor;
+                }
+
+                foreach (Label label in card.Controls.OfType<Label>())
+                {
+                    if ((label.Tag as string) == "dashboard-title")
+                    {
+                        label.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+                    }
+                    else if ((label.Tag as string) == "dashboard-value")
+                    {
+                        label.Font = new Font("Segoe UI", 32, FontStyle.Bold);
+                    }
+
+                    label.ForeColor = Color.White;
+                    label.BackColor = Color.Transparent;
+                    label.AutoSize = true;
+                }
+
+                foreach (PictureBox pictureBox in card.Controls.OfType<PictureBox>())
+                {
+                    pictureBox.BackColor = Color.Transparent;
+                }
+
+                card.Invalidate();
+            }
+        }
+
         private void btnUserAccount_Click(object sender, EventArgs e)
         {
             cmsUserMenu.Show(btnUserAccount, new Point(0, btnUserAccount.Height));
@@ -195,7 +378,7 @@ namespace OmniSight.UI.Forms
                 timerCamera.Start();
                 btnStartCamera.Enabled = false;
             }
-            else MessageBox.Show("Không thể mở Camera!");
+            else MessageBox.Show("Không thể mở camera!");
         }
 
         private void timerCamera_Tick(object sender, EventArgs e)
@@ -265,7 +448,7 @@ namespace OmniSight.UI.Forms
             System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B1: Bắt đầu");
             try
             {
-                lvwClasses.Items.Clear();
+                _allClassItems.Clear();
                 var _currentUser = _authService.CurrentUser;
                 if (_currentUser == null)
                 {
@@ -284,10 +467,7 @@ namespace OmniSight.UI.Forms
                     foreach (var c in ownedClasses)
                     {
                         string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
-                        var item = new ListViewItem(fullDisplayName);
-                        item.SubItems.Add(c.JoinCode);
-                        item.Tag = c.ClassId;
-                        lvwClasses.Items.Add(item);
+                        _allClassItems.Add((fullDisplayName, c.JoinCode, c.ClassId));
                     }
                 }
 
@@ -298,14 +478,13 @@ namespace OmniSight.UI.Forms
                     System.Diagnostics.Debug.WriteLine($">> [CLASSLIST] B7: Có {joinedClasses.Count} lớp học");
                     foreach (var c in joinedClasses)
                     {
-                        if (lvwClasses.Items.Cast<ListViewItem>().Any(i => (int)i.Tag == c.ClassId)) continue;
+                        if (_allClassItems.Any(i => i.ClassId == c.ClassId)) continue;
                         string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
-                        var item = new ListViewItem(fullDisplayName);
-                        item.SubItems.Add("******");
-                        item.Tag = c.ClassId;
-                        lvwClasses.Items.Add(item);
+                        _allClassItems.Add((fullDisplayName, "******", c.ClassId));
                     }
                 }
+
+                ApplyClassListFilter();
                 System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B8: Hoàn tất");
             }
             catch (Exception ex)
@@ -343,12 +522,32 @@ namespace OmniSight.UI.Forms
             var assignmentService = _serviceProvider.GetRequiredService<AssignmentService>();
             var examService = _serviceProvider.GetRequiredService<ExamService>();
             int currentUserId = _currentUser?.UserId ?? 0;
-            // KIỂM TRA XEM CÓ PHẢI GIÁO VIÊN CỦA LỚP NÀY KHÔNG
+            // KI�,M TRA XEM C�" PHẢI GIÁO VI�SN CỦA L�sP N�?Y KH�"NG
             bool isTeacherOfThisClass = await classService.IsTeacherOfClassAsync(classId, currentUserId);
 
-            // Open class detail tab and pass examService
-            // Truyền thêm biến isTeacherOfThisClass vào cuối (đối số thứ 8)
-            OpenClassDetailTab(classId, className, streamService, classService, assignmentService, examService, currentUserId, isTeacherOfThisClass);
+            // M�Y chi tiết l�>p dư�>i dạng form riêng (không append thêm tab/sidebar trong MainForm)
+            OpenClassDetailForm(classId, className, streamService, classService, assignmentService, examService, currentUserId, isTeacherOfThisClass);
+        }
+
+        private void OpenClassDetailForm(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, ExamService examService, int currentUserId, bool isTeacherOfThisClass)
+        {
+            using (var detailForm = new MaterialForm())
+            {
+                detailForm.Text = "Lớp: " + className;
+                detailForm.StartPosition = FormStartPosition.CenterParent;
+                detailForm.Size = new Size(1250, 760);
+                detailForm.MinimumSize = new Size(1000, 650);
+
+                MaterialSkinManager.Instance.AddFormToManage(detailForm);
+
+                var ucDetail = new UcClassDetail(streamService, classService, _authService, currentUserId, classId, isTeacherOfThisClass);
+                ucDetail.SetAssignmentService(assignmentService);
+                ucDetail.SetExamService(examService);
+                ucDetail.Dock = DockStyle.Fill;
+
+                detailForm.Controls.Add(ucDetail);
+                detailForm.ShowDialog(this);
+            }
         }
 
         private void OpenClassDetailTab(int classId, string className, StreamService streamService, ClassService classService, AssignmentService assignmentService, ExamService examService, int currentUserId, bool isTeacherOfThisClass)
@@ -398,13 +597,13 @@ namespace OmniSight.UI.Forms
             }
         }
 
-        // 1. Khai báo khung chứa các thẻ thống kê
+        // 1. Khai báo khung chứa các thẻ th�'ng kê
         private FlowLayoutPanel flpDashboardCards;
 
-        // 2. Hàm Setup giao diện Trang Chủ
+        // 2. Hàm Setup giao di�?n Trang Chủ
         private void SetupHomeTab()
         {
-            // Thêm chữ "Tổng quan hoạt động" dưới dòng Chào mừng
+            // Thêm chữ "T�.ng quan hoạt �'�Tng" dư�>i dòng Chào mừng
             MaterialLabel lblSubtitle = new MaterialLabel
             {
                 Text = "Tổng quan hoạt động của bạn",
@@ -420,16 +619,16 @@ namespace OmniSight.UI.Forms
             {
                 Location = new Point(35, 120),
                 Width = tabHome.Width - 70,
-                Height = 180, // TĂNG LÊN 180 ĐỂ CÁC THẺ KHÔNG BỊ CHÈN ÉP
+                Height = 180, // T�,NG L�SN 180 Đ�, CÁC THẺ KH�"NG B�S CH�^N �?P
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 WrapContents = true
             };
             tabHome.Controls.Add(flpDashboardCards);
 
-            // Tiêu đề Hành động nhanh
+            // Tiêu �'ề Hành �'�Tng nhanh
             MaterialLabel lblQuickActions = new MaterialLabel
             {
-                Text = "⚡ Hành động nhanh",
+                Text = "Hành động nhanh",
                 FontType = MaterialSkinManager.fontType.H6,
                 Location = new Point(35, 300),
                 AutoSize = true
@@ -445,20 +644,20 @@ namespace OmniSight.UI.Forms
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
-            MaterialButton btnGoToClasses = new MaterialButton { Text = "📚 MỞ DANH SÁCH LỚP", AutoSize = true, UseAccentColor = true };
+            MaterialButton btnGoToClasses = new MaterialButton { Text = "MỞ DANH SÁCH LỚP", AutoSize = true, UseAccentColor = true };
             btnGoToClasses.Click += (s, e) => materialTabControl1.SelectedTab = tabClasses;
 
-            MaterialButton btnGoToProfile = new MaterialButton { Text = "👤 CẬP NHẬT HỒ SƠ", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+            MaterialButton btnGoToProfile = new MaterialButton { Text = "CẬP NHẬT HỒ SƠ", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
             btnGoToProfile.Click += (s, e) => materialTabControl1.SelectedTab = tabProfile;
 
             flpActions.Controls.Add(btnGoToClasses);
             flpActions.Controls.Add(btnGoToProfile);
 
-            // Nếu là giáo viên, thêm nút Quản lý đề thi
+            // Nếu là giáo viên, thêm nút Quản lý �'ề thi
             var user = _authService.CurrentUser;
             if (user != null && user.IsTeacher)
             {
-                MaterialButton btnGoToExams = new MaterialButton { Text = "📋 QUẢN LÝ ĐỀ THI", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
+                MaterialButton btnGoToExams = new MaterialButton { Text = "QUẢN LÝ ĐỀ THI", AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined };
                 btnGoToExams.Click += btnOpenExamManager_Click;
                 flpActions.Controls.Add(btnGoToExams);
             }
@@ -467,7 +666,7 @@ namespace OmniSight.UI.Forms
         }
 
         // 3. Hàm vẽ ra từng thẻ màu sắc (Card)
-        private Panel CreateDashboardCard(string title, string value, Color bgColor, string iconEmoji)
+        private Panel CreateDashboardCard(string title, string value, Color bgColor, string iconKind)
         {
             Panel card = new Panel
             {
@@ -475,25 +674,79 @@ namespace OmniSight.UI.Forms
                 Height = 130,
                 Margin = new Padding(0, 0, 20, 20),
                 BackColor = bgColor,
+                Tag = bgColor,
                 BorderStyle = BorderStyle.None
             };
 
             card.Paint += (s, e) => { e.Graphics.Clear(bgColor); };
 
-            Label lblTitle = new Label { Text = title.ToUpper(), Font = new Font("Roboto", 11, FontStyle.Bold), ForeColor = Color.White, AutoSize = true, Location = new Point(20, 20) };
-            Label lblValue = new Label { Text = value, Font = new Font("Roboto", 32, FontStyle.Bold), ForeColor = Color.White, AutoSize = true, Location = new Point(20, 50) };
+            Label lblTitle = new Label { Text = title.ToUpper(), Tag = "dashboard-title", Font = new Font("Segoe UI", 11, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Transparent, AutoSize = true, Location = new Point(20, 20) };
+            Label lblValue = new Label { Text = value, Tag = "dashboard-value", Font = new Font("Segoe UI", 32, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Transparent, AutoSize = true, Location = new Point(20, 50) };
 
-            // Dùng Icon bằng Emoji cho nhẹ và hiện đại
-            Label lblIcon = new Label { Text = iconEmoji, Font = new Font("Segoe UI Emoji", 45), ForeColor = Color.FromArgb(80, 255, 255, 255), AutoSize = true, Location = new Point(210, 30) };
+            PictureBox picIcon = new PictureBox
+            {
+                Size = new Size(36, 36),
+                Location = new Point(248, 16),
+                BackColor = Color.Transparent,
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                Image = CreateDashboardIcon(iconKind)
+            };
 
             card.Controls.Add(lblTitle);
             card.Controls.Add(lblValue);
-            card.Controls.Add(lblIcon);
+            card.Controls.Add(picIcon);
 
             return card;
         }
 
-        // 4. Hàm nạp dữ liệu thật vào các thẻ
+        private Bitmap CreateDashboardIcon(string iconKind)
+        {
+            var bmp = new Bitmap(36, 36);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+
+                using var pen = new Pen(Color.FromArgb(230, 255, 255, 255), 2f);
+                using var fill = new SolidBrush(Color.FromArgb(50, 255, 255, 255));
+
+                switch ((iconKind ?? string.Empty).ToLowerInvariant())
+                {
+                    case "teacher":
+                        g.FillEllipse(fill, 9, 4, 18, 18);
+                        g.DrawEllipse(pen, 9, 4, 18, 18);
+                        g.FillRectangle(fill, 6, 22, 24, 10);
+                        g.DrawRectangle(pen, 6, 22, 24, 10);
+                        break;
+                    case "assignment":
+                        g.FillRectangle(fill, 8, 5, 20, 26);
+                        g.DrawRectangle(pen, 8, 5, 20, 26);
+                        g.DrawLine(pen, 11, 12, 25, 12);
+                        g.DrawLine(pen, 11, 18, 25, 18);
+                        g.DrawLine(pen, 11, 24, 20, 24);
+                        break;
+                    case "student":
+                        g.FillEllipse(fill, 11, 5, 14, 14);
+                        g.DrawEllipse(pen, 11, 5, 14, 14);
+                        g.FillPie(fill, 6, 16, 24, 16, 200, 140);
+                        g.DrawArc(pen, 6, 16, 24, 16, 200, 140);
+                        break;
+                    case "account":
+                        g.FillEllipse(fill, 10, 5, 16, 16);
+                        g.DrawEllipse(pen, 10, 5, 16, 16);
+                        g.DrawEllipse(pen, 6, 18, 24, 13);
+                        break;
+                    default:
+                        g.FillEllipse(fill, 8, 8, 20, 20);
+                        g.DrawEllipse(pen, 8, 8, 20, 20);
+                        break;
+                }
+            }
+
+            return bmp;
+        }
+
+        // 4. Hàm nạp dữ li�?u thật vào các thẻ
        private async Task LoadDashboardDataAsync()
 {
     System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B1: Bắt đầu");
@@ -558,16 +811,17 @@ namespace OmniSight.UI.Forms
 
             if (user.IsTeacher)
             {
-                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG DẠY", $"{classCount} lớp", Color.FromArgb(33, 150, 243), "👨‍🏫"));
-                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI NỘP CHỜ CHẤM", $"{pendingActionCount} bài", Color.FromArgb(255, 152, 0), "📝"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG DẠY", $"{classCount} lớp", Color.FromArgb(33, 150, 243), "teacher"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI NỘP CHỜ CHẤM", $"{pendingActionCount} bài", Color.FromArgb(255, 152, 0), "assignment"));
             }
             else
             {
-                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG HỌC", $"{classCount} lớp", Color.FromArgb(76, 175, 80), "🎒"));
-                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI TẬP CHỜ NỘP", $"{pendingActionCount} bài", Color.FromArgb(244, 67, 54), "⏳"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG HỌC", $"{classCount} lớp", Color.FromArgb(76, 175, 80), "student"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI TẬP CHỜ NỘP", $"{pendingActionCount} bài", Color.FromArgb(244, 67, 54), "assignment"));
             }
 
-            flpDashboardCards.Controls.Add(CreateDashboardCard("VAI TRÒ TÀI KHOẢN", user.IsTeacher ? "Giáo Viên" : "Học Sinh", Color.FromArgb(156, 39, 176), "🛡️"));
+            flpDashboardCards.Controls.Add(CreateDashboardCard("VAI TRÒ TÀI KHOẢN", user.IsTeacher ? "Giáo viên" : "Học sinh", Color.FromArgb(156, 39, 176), "account"));
+            NormalizeDashboardCardsAppearance();
             System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B6: Hoàn tất");
         }));
     }
@@ -582,18 +836,18 @@ namespace OmniSight.UI.Forms
     }
 }
 
-        // 1. Hàm thiết lập giao diện trang Cài đặt
-       // 1. Hàm thiết lập giao diện trang Cài đặt (Chuẩn MaterialSkin)
+        // 1. Hàm thiết lập giao di�?n trang Cài �'ặt
+       // 1. Hàm thiết lập giao di�?n trang Cài �'ặt (Chuẩn MaterialSkin)
         private void SetupSettingsTab()
         {
             tabSettings.Controls.Clear();
             
-            // XÓA HẾT CÁC LỆNH ÉP MÀU NỀN (BackColor = White/Transparent) ĐI
-            // Hãy để MaterialSkin tự động lo màu nền cho Tab này!
+            // X�"A HẾT CÁC L�?NH �?P M�?U N�?N (BackColor = White/Transparent) ĐI
+            // Hãy �'�f MaterialSkin tự �'�Tng lo màu nền cho Tab này!
 
             MaterialLabel lblTitle = new MaterialLabel
             {
-                Text = "⚙️ CÀI ĐẶT GIAO DIỆN ỨNG DỤNG",
+                Text = "CÀI ĐẶT GIAO DIỆN ỨNG DỤNG",
                 FontType = MaterialSkinManager.fontType.H6,
                 Location = new Point(35, 30),
                 AutoSize = true
@@ -603,7 +857,7 @@ namespace OmniSight.UI.Forms
 
             MaterialSwitch switchDarkMode = new MaterialSwitch
             {
-                Text = "🌙 Chế độ nền tối (Dark Mode)",
+                Text = "Chế độ nền tối (Dark Mode)",
                 Location = new Point(35, 80),
                 AutoSize = true,
                 Checked = currentSettings.isDark
@@ -623,7 +877,7 @@ namespace OmniSight.UI.Forms
 
             MaterialLabel lblTheme = new MaterialLabel
             {
-                Text = "🎨 Chọn màu chủ đạo:",
+                Text = "Chọn màu chủ đạo:",
                 FontType = MaterialSkinManager.fontType.Subtitle1,
                 Location = new Point(35, 160),
                 AutoSize = true
@@ -637,7 +891,7 @@ namespace OmniSight.UI.Forms
                 WrapContents = true
             };
 
-            // Tạo các Ảnh màu (Dùng ID từ 0 đến 4)
+            // Tạo các Ảnh màu (Dùng ID từ 0 �'ến 4)
             flpColors.Controls.Add(CreateColorOption("Xanh Dương", Color.FromArgb(30, 136, 229), 0));
             flpColors.Controls.Add(CreateColorOption("Xanh Lá", Color.FromArgb(67, 160, 71), 1));
             flpColors.Controls.Add(CreateColorOption("Cam", Color.FromArgb(251, 140, 0), 2));
@@ -650,10 +904,10 @@ namespace OmniSight.UI.Forms
             tabSettings.Controls.Add(flpColors);
         }
 
-        // 2. TUYỆT CHIÊU: Biến cái nút thành một bức ảnh (PictureBox)
+        // 2. TUY�?T CHI�SU: Biến cái nút thành m�Tt bức ảnh (PictureBox)
         private PictureBox CreateColorOption(string name, Color bgColor, int colorIndex)
         {
-            // Tạo một bức ảnh kích thước 130x45
+            // Tạo m�Tt bức ảnh kích thư�>c 130x45
             Bitmap bmp = new Bitmap(130, 45);
             using (Graphics g = Graphics.FromImage(bmp))
             {
@@ -661,7 +915,7 @@ namespace OmniSight.UI.Forms
                 g.Clear(bgColor);
                 
                 // Vẽ chữ màu trắng lên giữa bức ảnh
-                using (Font font = new Font("Roboto", 11, FontStyle.Bold))
+                using (Font font = new Font("Segoe UI", 11, FontStyle.Bold))
                 using (Brush brush = new SolidBrush(Color.White))
                 {
                     StringFormat sf = new StringFormat();
@@ -671,7 +925,7 @@ namespace OmniSight.UI.Forms
                 }
             }
 
-            // Bỏ bức ảnh vào PictureBox (MaterialSkin không thể đụng vào Image)
+            // Bỏ bức ảnh vào PictureBox (MaterialSkin không th�f �'ụng vào Image)
             PictureBox pic = new PictureBox
             {
                 Image = bmp,
@@ -761,10 +1015,10 @@ namespace OmniSight.UI.Forms
                 // Ignore errors for controls that don't support scaling
             }
         }
-        // --- HỆ THỐNG LƯU TRỮ CÀI ĐẶT GIAO DIỆN ---
+        // --- H�? THỐNG LƯU TRỮ C�?I ĐẶT GIAO DI�?N ---
         private string GetUiSettingsFilePath()
         {
-            // Lưu file cấu hình ui_settings.txt vào cùng chỗ với session.json
+            // Lưu file cấu hình ui_settings.txt vào cùng ch�- v�>i session.json
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniSight", "ui_settings.txt");
         }
 
@@ -793,7 +1047,7 @@ namespace OmniSight.UI.Forms
                 }
             }
             catch { }
-            return (false, 0); // Mặc định: Nền sáng, Màu Xanh dương
+            return (false, 0); // Mặc �'�<nh: Nền sáng, Màu Xanh dương
         }
 
         private void ApplyColorByIndex(int index)
