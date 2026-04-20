@@ -230,7 +230,13 @@ namespace OmniSight.Services
                 await _context.SaveChangesAsync();
             }
         }
-
+        // ExamService.cs - thêm hàm này
+        public async Task<int> GetViolationCountAsync(int resultId)
+        {
+            return await _context.ViolationLogs  // Đổi _db thành _context
+                .Where(v => v.ResultId == resultId)
+                .CountAsync();
+        }
         // 2. Hàm cho Giáo viên duyệt làm lại
         public async Task ApproveRetakeAsync(int resultId, bool isApproved)
         {

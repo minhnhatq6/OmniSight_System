@@ -32,17 +32,18 @@ namespace OmniSight.UI.Forms
             _userService = userService;
             _serviceProvider = serviceProvider;
             _faceAiService = faceAiService;
-            LoadClassList();
+            this.Shown += MainForm_Shown;
+            // XÓA LoadClassList() khỏi constructor - gọi sau khi form load xong
 
             var materialSkinManager = MaterialSkinManager.Instance;
             materialSkinManager.AddFormToManage(this);
-            materialSkinManager.Theme = MaterialSkinManager.Themes.LIGHT;
-            materialSkinManager.ColorScheme = new ColorScheme(
-                Primary.Blue600, Primary.Blue700,
-                Primary.Blue200, Accent.Blue400,
-                TextShade.WHITE
-            );
-        }
+
+            // Load cài đặt từ file
+            var uiSettings = LoadUiSettings();
+            materialSkinManager.Theme = uiSettings.isDark ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
+            ApplyColorByIndex(uiSettings.colorIndex);
+        
+        }   
 
         private void btnOpenExamManager_Click(object sender, EventArgs e)
         {
@@ -70,52 +71,71 @@ namespace OmniSight.UI.Forms
         public bool StartAtProfile { get; set; } = false;
         private void MainForm_Load(object sender, EventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(">> [MAIN_LOAD] B1: Thiết lập UI ban đầu");
+
             this.DrawerTabControl = this.materialTabControl1;
             this.KeyPreview = true;
             this.KeyDown += MainForm_KeyDown;
 
             var user = _authService.CurrentUser;
+
+            // 1. Nếu là đăng nhập lần đầu, chỉ chuyển Tab (không hiện MessageBox ở đây)
             if (StartAtProfile)
             {
-                // 1. Chuyển ngay sang tab Profile (thường là Index 2 tùy thiết kế của bạn)
                 materialTabControl1.SelectedTab = tabProfile;
-
-                // 2. Hiện thông báo nhắc nhở "Đẹp mắt"
-                BeginInvoke(new Action(() => {
-                    MessageBox.Show(this,
-                        "Chào mừng thành viên mới!\n\nBạn hãy dành ít giây để:\n" +
-                        "1. Chọn Vai trò (Học sinh hoặc Giáo viên).\n" +
-                        "2. Cài đặt Face ID để bảo mật tài khoản.\n\nChúc bạn có trải nghiệm tốt!",
-                        "Hoàn tất hồ sơ", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }));
             }
+
+            // 2. Đổ dữ liệu User lên giao diện
             if (user != null)
             {
                 lblHomeWelcome.Text = $"Chào mừng {user.FullName} đến với OmniSight!";
                 btnUserAccount.Text = user.FullName.ToUpper();
-                // --- BỔ SUNG CÁC DÒNG NÀY ---
                 txtFullName.Text = user.FullName ?? "";
-                txtPhone.Text = user.Phone ?? "";         // Load số điện thoại
+                txtPhone.Text = user.Phone ?? "";
+
                 SetupHomeTab();
                 SetupSettingsTab();
-                _ = LoadDashboardDataAsync();
-                switchStudent.Checked = user.IsStudent;   // Load trạng thái học sinh
-                switchTeacher.Checked = user.IsTeacher;   // Load trạng thái giáo viên
+
+                switchStudent.Checked = user.IsStudent;
+                switchTeacher.Checked = user.IsTeacher;
             }
 
-            try
+            // 3. Chạy các tác vụ ngầm (Dashboard, AI) mà không chặn UI
+            BeginInvoke(new Action(() =>
             {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string detector = Path.Combine(baseDir, "Models", "face_detection_yunet_2023mar.onnx");
-                string recognizer = Path.Combine(baseDir, "Models", "face_recognition_sface_2021dec.onnx");
-                _faceAiService.InitializeModels(detector, recognizer);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi khởi tạo AI: " + ex.Message);
-            }
+                _ = Task.Run(() => LoadDashboardDataAsync());
+
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                        string detector = Path.Combine(baseDir, "Models", "face_detection_yunet_2023mar.onnx");
+                        string recognizer = Path.Combine(baseDir, "Models", "face_recognition_sface_2021dec.onnx");
+                        _faceAiService.InitializeModels(detector, recognizer);
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi AI: " + ex.Message); }
+                });
+
+                _ = LoadClassList();
+            }));
         }
 
+        // HÀM NÀY SẼ CHẠY SAU KHI FORM HIỆN LÊN HOÀN TOÀN
+        private void MainForm_Shown(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine(">> [MAIN_SHOWN] Form đã hiển thị xong");
+
+            if (StartAtProfile)
+            {
+                // Lúc này Form đã vẽ xong hoàn toàn, gọi MessageBox sẽ không bị treo app
+                MessageBox.Show(this,
+                    "Chào mừng thành viên mới!\n\nBạn hãy dành ít giây để:\n1. Chọn Vai trò.\n2. Cài đặt Face ID.",
+                    "Hoàn tất hồ sơ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
         private void btnUserAccount_Click(object sender, EventArgs e)
         {
             cmsUserMenu.Show(btnUserAccount, new Point(0, btnUserAccount.Height));
@@ -235,51 +255,62 @@ namespace OmniSight.UI.Forms
                 var result = frmCreate.ShowDialog();
                 if (result == DialogResult.OK)
                 {
-                    LoadClassList();
+                    _=LoadClassList();
                 }
             }
         }
 
-        private async void LoadClassList()
+        private async Task LoadClassList()
         {
-            lvwClasses.Items.Clear();
-            var _currentUser = _authService.CurrentUser;
-            if (_currentUser == null) return;
-
-            var _classService = _serviceProvider.GetRequiredService<ClassService>();
-
-            // 1. Dành cho Giáo viên
-            if (_currentUser.IsTeacher)
+            System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B1: Bắt đầu");
+            try
             {
-                var ownedClasses = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
-                foreach (var c in ownedClasses)
+                lvwClasses.Items.Clear();
+                var _currentUser = _authService.CurrentUser;
+                if (_currentUser == null)
                 {
-                    // NỐI CHUỖI TẠI ĐÂY: Tên lớp - Tên môn học
-                    string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
-
-                    var item = new ListViewItem(fullDisplayName);
-                    item.SubItems.Add(c.JoinCode);
-                    item.Tag = c.ClassId;
-                    lvwClasses.Items.Add(item);
+                    System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B2: user null, return");
+                    return;
                 }
+
+                System.Diagnostics.Debug.WriteLine($">> [CLASSLIST] B3: IsTeacher={_currentUser.IsTeacher}, IsStudent={_currentUser.IsStudent}");
+                var _classService = _serviceProvider.GetRequiredService<ClassService>();
+
+                if (_currentUser.IsTeacher)
+                {
+                    System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B4: Lấy owned classes...");
+                    var ownedClasses = await _classService.GetOwnedClassesAsync(_currentUser.UserId);
+                    System.Diagnostics.Debug.WriteLine($">> [CLASSLIST] B5: Có {ownedClasses.Count} lớp dạy");
+                    foreach (var c in ownedClasses)
+                    {
+                        string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
+                        var item = new ListViewItem(fullDisplayName);
+                        item.SubItems.Add(c.JoinCode);
+                        item.Tag = c.ClassId;
+                        lvwClasses.Items.Add(item);
+                    }
+                }
+
+                if (_currentUser.IsStudent)
+                {
+                    System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B6: Lấy joined classes...");
+                    var joinedClasses = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
+                    System.Diagnostics.Debug.WriteLine($">> [CLASSLIST] B7: Có {joinedClasses.Count} lớp học");
+                    foreach (var c in joinedClasses)
+                    {
+                        if (lvwClasses.Items.Cast<ListViewItem>().Any(i => (int)i.Tag == c.ClassId)) continue;
+                        string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
+                        var item = new ListViewItem(fullDisplayName);
+                        item.SubItems.Add("******");
+                        item.Tag = c.ClassId;
+                        lvwClasses.Items.Add(item);
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] B8: Hoàn tất");
             }
-
-            // 2. Dành cho Học sinh
-            if (_currentUser.IsStudent)
+            catch (Exception ex)
             {
-                var joinedClasses = await _classService.GetJoinedClassesAsync(_currentUser.UserId);
-                foreach (var c in joinedClasses)
-                {
-                    if (lvwClasses.Items.Cast<ListViewItem>().Any(i => (int)i.Tag == c.ClassId)) continue;
-
-                    // NỐI CHUỖI TẠI ĐÂY: Tên lớp - Tên môn học
-                    string fullDisplayName = $"{c.ClassName} - {c.Subject?.SubjectName ?? "N/A"}";
-
-                    var item = new ListViewItem(fullDisplayName);
-                    item.SubItems.Add("******");
-                    item.Tag = c.ClassId;
-                    lvwClasses.Items.Add(item);
-                }
+                System.Diagnostics.Debug.WriteLine(">> [CLASSLIST] LỖI: " + ex.Message + "\n" + ex.StackTrace);
             }
         }
 
@@ -292,7 +323,7 @@ namespace OmniSight.UI.Forms
             {
                 if (frmJoin.ShowDialog() == DialogResult.OK)
                 {
-                    LoadClassList();
+                    _=LoadClassList();
                 }
             }
         }
@@ -463,100 +494,103 @@ namespace OmniSight.UI.Forms
         }
 
         // 4. Hàm nạp dữ liệu thật vào các thẻ
-        private async Task LoadDashboardDataAsync()
+       private async Task LoadDashboardDataAsync()
+{
+    System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B1: Bắt đầu");
+    try
+    {
+        var user = _authService.CurrentUser;
+        if (user == null || flpDashboardCards == null)
         {
-            try
+            System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B2: null, return");
+            return;
+        }
+
+        int classCount = 0;
+        int pendingActionCount = 0;
+
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var classService = scope.ServiceProvider.GetRequiredService<ClassService>();
+            var assignmentService = scope.ServiceProvider.GetRequiredService<AssignmentService>();
+
+            if (user.IsTeacher)
             {
-                var user = _authService.CurrentUser;
-                if (user == null || flpDashboardCards == null) return;
-
-                int classCount = 0;
-                int pendingActionCount = 0; // Biến lưu số lượng bài tập cần xử lý
-
-                // Mở làn đường riêng cho Database
-                using (var scope = _serviceProvider.CreateScope())
+                var classes = await classService.GetOwnedClassesAsync(user.UserId).ConfigureAwait(false);
+                classCount = classes.Count;
+                foreach (var c in classes)
                 {
-                    var classService = scope.ServiceProvider.GetRequiredService<ClassService>();
-                    var assignmentService = scope.ServiceProvider.GetRequiredService<AssignmentService>();
-
-                    if (user.IsTeacher)
-                    {
-                        var classes = await classService.GetOwnedClassesAsync(user.UserId);
-                        classCount = classes.Count;
-
-                        // GIÁO VIÊN: Đi từng lớp -> Đi từng bài tập -> Đếm số bài nộp chưa chấm điểm
-                        foreach (var c in classes)
-                        {
-                            var assignments = await assignmentService.GetAssignmentsByClassIdAsync(c.ClassId);
-                            foreach (var a in assignments)
-                            {
-                                if (a.Submissions != null)
-                                {
-                                    // Đếm số bài nộp có Score = null
-                                    pendingActionCount += a.Submissions.Count(s => s.Score == null);
-                                }
-                            }
-                        }
-                    }
-                    else // HỌC SINH
-                    {
-                        var classes = await classService.GetJoinedClassesAsync(user.UserId);
-                        classCount = classes.Count;
-
-                        // HỌC SINH: Đi từng lớp -> Đi từng bài tập -> Đếm bài mình chưa nộp
-                        foreach (var c in classes)
-                        {
-                            var assignments = await assignmentService.GetAssignmentsByClassIdAsync(c.ClassId);
-                            foreach (var a in assignments)
-                            {
-                                // Kiểm tra xem trong danh sách nộp bài có mặt mình chưa
-                                bool isSubmitted = a.Submissions != null && a.Submissions.Any(s => s.StudentId == user.UserId);
-                                if (!isSubmitted)
-                                {
-                                    pendingActionCount++;
-                                }
-                            }
-                        }
-                    }
-                } // Đóng đường ống Database
-
-                // Ép vẽ giao diện
-                this.Invoke(new MethodInvoker(() =>
-                {
-                    flpDashboardCards.Controls.Clear();
-
-                    if (user.IsTeacher)
-                    {
-                        flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG DẠY", $"{classCount} lớp", Color.FromArgb(33, 150, 243), "👨‍🏫"));
-                        // Thay chữ "Cập nhật..." thành số lượng bài
-                        flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI NỘP CHỜ CHẤM", $"{pendingActionCount} bài", Color.FromArgb(255, 152, 0), "📝"));
-                    }
-                    else
-                    {
-                        flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG HỌC", $"{classCount} lớp", Color.FromArgb(76, 175, 80), "🎒"));
-                        // Thay chữ "Cập nhật..." thành số lượng bài
-                        flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI TẬP CHỜ NỘP", $"{pendingActionCount} bài", Color.FromArgb(244, 67, 54), "⏳"));
-                    }
-
-                    flpDashboardCards.Controls.Add(CreateDashboardCard("VAI TRÒ TÀI KHOẢN", user.IsTeacher ? "Giáo Viên" : "Học Sinh", Color.FromArgb(156, 39, 176), "🛡️"));
-                }));
+                    var assignments = await assignmentService.GetAssignmentsByClassIdAsync(c.ClassId).ConfigureAwait(false);
+                    foreach (var a in assignments)
+                        if (a.Submissions != null)
+                            pendingActionCount += a.Submissions.Count(s => s.Score == null);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                this.Invoke(new MethodInvoker(() => {
-                    MessageBox.Show("Lỗi tải thống kê Dashboard: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }));
+                var classes = await classService.GetJoinedClassesAsync(user.UserId).ConfigureAwait(false);
+                classCount = classes.Count;
+                foreach (var c in classes)
+                {
+                    var assignments = await assignmentService.GetAssignmentsByClassIdAsync(c.ClassId).ConfigureAwait(false);
+                    foreach (var a in assignments)
+                    {
+                        bool isSubmitted = a.Submissions != null && a.Submissions.Any(s => s.StudentId == user.UserId);
+                        if (!isSubmitted) pendingActionCount++;
+                    }
+                }
             }
         }
 
+        System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B4: Xong DB");
+
+        if (!this.IsHandleCreated)
+        {
+            System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B4b: Handle chưa có, đợi...");
+            await Task.Delay(300).ConfigureAwait(false);
+        }
+
+        System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B4c: Gọi BeginInvoke");
+        this.BeginInvoke(new MethodInvoker(() =>
+        {
+            System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B5: Vẽ UI");
+            flpDashboardCards.Controls.Clear();
+
+            if (user.IsTeacher)
+            {
+                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG DẠY", $"{classCount} lớp", Color.FromArgb(33, 150, 243), "👨‍🏫"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI NỘP CHỜ CHẤM", $"{pendingActionCount} bài", Color.FromArgb(255, 152, 0), "📝"));
+            }
+            else
+            {
+                flpDashboardCards.Controls.Add(CreateDashboardCard("LỚP ĐANG HỌC", $"{classCount} lớp", Color.FromArgb(76, 175, 80), "🎒"));
+                flpDashboardCards.Controls.Add(CreateDashboardCard("BÀI TẬP CHỜ NỘP", $"{pendingActionCount} bài", Color.FromArgb(244, 67, 54), "⏳"));
+            }
+
+            flpDashboardCards.Controls.Add(CreateDashboardCard("VAI TRÒ TÀI KHOẢN", user.IsTeacher ? "Giáo Viên" : "Học Sinh", Color.FromArgb(156, 39, 176), "🛡️"));
+            System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] B6: Hoàn tất");
+        }));
+    }
+    catch (Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine(">> [DASHBOARD] LỖI: " + ex.Message + "\n" + ex.StackTrace);
+        if (this.IsHandleCreated)
+        {
+            this.BeginInvoke(new MethodInvoker(() =>
+                MessageBox.Show("Lỗi Dashboard: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error)));
+        }
+    }
+}
+
         // 1. Hàm thiết lập giao diện trang Cài đặt
+       // 1. Hàm thiết lập giao diện trang Cài đặt (Chuẩn MaterialSkin)
         private void SetupSettingsTab()
         {
-            // Xóa sạch các nút cũ bị thừa (bao gồm cái nút Quản lý đề thi lơ lửng)
             tabSettings.Controls.Clear();
-            tabSettings.BackColor = Color.White;
+            
+            // XÓA HẾT CÁC LỆNH ÉP MÀU NỀN (BackColor = White/Transparent) ĐI
+            // Hãy để MaterialSkin tự động lo màu nền cho Tab này!
 
-            // Tiêu đề
             MaterialLabel lblTitle = new MaterialLabel
             {
                 Text = "⚙️ CÀI ĐẶT GIAO DIỆN ỨNG DỤNG",
@@ -565,31 +599,34 @@ namespace OmniSight.UI.Forms
                 AutoSize = true
             };
 
-            // --- CÔNG TẮC DARK MODE ---
+            var currentSettings = LoadUiSettings();
+
             MaterialSwitch switchDarkMode = new MaterialSwitch
             {
                 Text = "🌙 Chế độ nền tối (Dark Mode)",
                 Location = new Point(35, 80),
                 AutoSize = true,
-                Checked = MaterialSkinManager.Instance.Theme == MaterialSkinManager.Themes.DARK
+                Checked = currentSettings.isDark
             };
+            
             switchDarkMode.CheckedChanged += (s, e) =>
             {
-                // Bật tắt Dark Mode ngay lập tức
-                MaterialSkinManager.Instance.Theme = switchDarkMode.Checked ?
-                    MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
+                MaterialSkinManager.Instance.Theme = switchDarkMode.Checked ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
+                
+                int currentColorIndex = LoadUiSettings().colorIndex;
+                SaveUiSettings(switchDarkMode.Checked, currentColorIndex);
 
+                this.Invalidate(true);
+                this.Refresh();
                 _ = LoadDashboardDataAsync();
             };
 
-            // --- CHỌN MÀU CHỦ ĐẠO ---
             MaterialLabel lblTheme = new MaterialLabel
             {
                 Text = "🎨 Chọn màu chủ đạo:",
                 FontType = MaterialSkinManager.fontType.Subtitle1,
                 Location = new Point(35, 160),
-                AutoSize = true,
-                ForeColor = Color.Gray
+                AutoSize = true
             };
 
             FlowLayoutPanel flpColors = new FlowLayoutPanel
@@ -600,12 +637,12 @@ namespace OmniSight.UI.Forms
                 WrapContents = true
             };
 
-            // Thêm các lựa chọn màu sắc
-            flpColors.Controls.Add(CreateColorOption("Xanh Dương", Color.FromArgb(30, 136, 229), Primary.Blue600, Primary.Blue700, Primary.Blue200, Accent.LightBlue200));
-            flpColors.Controls.Add(CreateColorOption("Xanh Lá", Color.FromArgb(67, 160, 71), Primary.Green600, Primary.Green700, Primary.Green200, Accent.LightGreen200));
-            flpColors.Controls.Add(CreateColorOption("Cam", Color.FromArgb(251, 140, 0), Primary.Orange600, Primary.Orange700, Primary.Orange200, Accent.DeepOrange200));
-            flpColors.Controls.Add(CreateColorOption("Tím", Color.FromArgb(142, 36, 170), Primary.Purple600, Primary.Purple700, Primary.Purple200, Accent.DeepPurple200));
-            flpColors.Controls.Add(CreateColorOption("Hồng", Color.FromArgb(216, 27, 96), Primary.Pink600, Primary.Pink700, Primary.Pink200, Accent.Pink200));
+            // Tạo các Ảnh màu (Dùng ID từ 0 đến 4)
+            flpColors.Controls.Add(CreateColorOption("Xanh Dương", Color.FromArgb(30, 136, 229), 0));
+            flpColors.Controls.Add(CreateColorOption("Xanh Lá", Color.FromArgb(67, 160, 71), 1));
+            flpColors.Controls.Add(CreateColorOption("Cam", Color.FromArgb(251, 140, 0), 2));
+            flpColors.Controls.Add(CreateColorOption("Tím", Color.FromArgb(142, 36, 170), 3));
+            flpColors.Controls.Add(CreateColorOption("Hồng", Color.FromArgb(216, 27, 96), 4));
 
             tabSettings.Controls.Add(lblTitle);
             tabSettings.Controls.Add(switchDarkMode);
@@ -613,30 +650,48 @@ namespace OmniSight.UI.Forms
             tabSettings.Controls.Add(flpColors);
         }
 
-        // 2. Hàm hỗ trợ tạo ra các nút chọn màu
-        private Button CreateColorOption(string name, Color bgColor, Primary p, Primary d, Primary l, Accent a)
+        // 2. TUYỆT CHIÊU: Biến cái nút thành một bức ảnh (PictureBox)
+        private PictureBox CreateColorOption(string name, Color bgColor, int colorIndex)
         {
-            Button btn = new Button
+            // Tạo một bức ảnh kích thước 130x45
+            Bitmap bmp = new Bitmap(130, 45);
+            using (Graphics g = Graphics.FromImage(bmp))
             {
-                Text = name,
+                // Tô màu nền cho bức ảnh
+                g.Clear(bgColor);
+                
+                // Vẽ chữ màu trắng lên giữa bức ảnh
+                using (Font font = new Font("Roboto", 11, FontStyle.Bold))
+                using (Brush brush = new SolidBrush(Color.White))
+                {
+                    StringFormat sf = new StringFormat();
+                    sf.Alignment = StringAlignment.Center;
+                    sf.LineAlignment = StringAlignment.Center;
+                    g.DrawString(name, font, brush, new RectangleF(0, 0, 130, 45), sf);
+                }
+            }
+
+            // Bỏ bức ảnh vào PictureBox (MaterialSkin không thể đụng vào Image)
+            PictureBox pic = new PictureBox
+            {
+                Image = bmp,
                 Size = new Size(130, 45),
-                BackColor = bgColor,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Roboto", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 Margin = new Padding(0, 0, 15, 15)
             };
-            btn.FlatAppearance.BorderSize = 0;
-            btn.Click += (s, e) =>
-            {
-                // Đổi màu toàn bộ ứng dụng
-                MaterialSkinManager.Instance.ColorScheme = new ColorScheme(p, d, l, a, TextShade.WHITE);
-                this.Refresh(); // Cập nhật lại giao diện ngay lập tức
 
+            pic.Click += (s, e) =>
+            {
+                ApplyColorByIndex(colorIndex);
+                
+                bool isDark = MaterialSkinManager.Instance.Theme == MaterialSkinManager.Themes.DARK;
+                SaveUiSettings(isDark, colorIndex);
+
+                this.Refresh(); 
                 _ = LoadDashboardDataAsync();
             };
-            return btn;
+
+            return pic;
         }
 
         private void ZoomIn()
@@ -704,6 +759,53 @@ namespace OmniSight.UI.Forms
             catch
             {
                 // Ignore errors for controls that don't support scaling
+            }
+        }
+        // --- HỆ THỐNG LƯU TRỮ CÀI ĐẶT GIAO DIỆN ---
+        private string GetUiSettingsFilePath()
+        {
+            // Lưu file cấu hình ui_settings.txt vào cùng chỗ với session.json
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniSight", "ui_settings.txt");
+        }
+
+        private void SaveUiSettings(bool isDark, int colorIndex)
+        {
+            try
+            {
+                string path = GetUiSettingsFilePath();
+                File.WriteAllText(path, $"{isDark}|{colorIndex}");
+            }
+            catch { }
+        }
+
+        private (bool isDark, int colorIndex) LoadUiSettings()
+        {
+            try
+            {
+                string path = GetUiSettingsFilePath();
+                if (File.Exists(path))
+                {
+                    var parts = File.ReadAllText(path).Split('|');
+                    if (parts.Length == 2)
+                    {
+                        return (bool.Parse(parts[0]), int.Parse(parts[1]));
+                    }
+                }
+            }
+            catch { }
+            return (false, 0); // Mặc định: Nền sáng, Màu Xanh dương
+        }
+
+        private void ApplyColorByIndex(int index)
+        {
+            var msm = MaterialSkinManager.Instance;
+            switch (index)
+            {
+                case 1: msm.ColorScheme = new ColorScheme(Primary.Green600, Primary.Green700, Primary.Green200, Accent.LightGreen200, TextShade.WHITE); break;
+                case 2: msm.ColorScheme = new ColorScheme(Primary.Orange600, Primary.Orange700, Primary.Orange200, Accent.DeepOrange200, TextShade.WHITE); break;
+                case 3: msm.ColorScheme = new ColorScheme(Primary.Purple600, Primary.Purple700, Primary.Purple200, Accent.DeepPurple200, TextShade.WHITE); break;
+                case 4: msm.ColorScheme = new ColorScheme(Primary.Pink600, Primary.Pink700, Primary.Pink200, Accent.Pink200, TextShade.WHITE); break;
+                default: msm.ColorScheme = new ColorScheme(Primary.Blue600, Primary.Blue700, Primary.Blue200, Accent.LightBlue200, TextShade.WHITE); break;
             }
         }
     }

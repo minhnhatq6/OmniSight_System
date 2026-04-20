@@ -21,21 +21,75 @@ namespace OmniSight.UI.Forms.Auth
         }
 
         // --- ĐĂNG NHẬP GOOGLE ---
+        // FrmLogin.cs - btnLoginGoogle_Click
+        public bool RedirectToProfile { get; set; } = false;
+
         private async void btnLoginGoogle_Click(object sender, EventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine(">> [GOOGLE_LOGIN] B1: Bắt đầu");
+
             bool success = await _authService.LoginWithGoogleAsync();
-            if (success)
+            System.Diagnostics.Debug.WriteLine($">> [GOOGLE_LOGIN] B2: LoginWithGoogleAsync = {success}");
+            if (!success) return;
+
+            var user = _authService.CurrentUser;
+            System.Diagnostics.Debug.WriteLine($">> [GOOGLE_LOGIN] B3: CurrentUser = {user?.FullName ?? "NULL"}, UserId = {user?.UserId}");
+
+            bool shouldRedirect = false;
+            bool needsPassword = (user == null ||
+                                  string.IsNullOrEmpty(user.PasswordHash) ||
+                                  user.PasswordHash == "GOOGLE_AUTH");
+
+            System.Diagnostics.Debug.WriteLine($">> [GOOGLE_LOGIN] B4: needsPassword = {needsPassword}, PasswordHash = '{user?.PasswordHash}'");
+
+            if (needsPassword)
             {
-                var user = _authService.CurrentUser;
-                if (user == null || string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_AUTH")
+                System.Diagnostics.Debug.WriteLine(">> [GOOGLE_LOGIN] B5: Mở FrmSetPassword...");
+                using (var setPassForm = _serviceProvider.GetRequiredService<FrmSetPassword>())
                 {
-                    using (var setPassForm = _serviceProvider.GetRequiredService<FrmSetPassword>())
-                    {
-                        if (setPassForm.ShowDialog() == DialogResult.OK) GoToMainForm();
-                        else _authService.Logout();
-                    }
+                    setPassForm.ShowDialog(this);
+                    shouldRedirect = setPassForm.PasswordSaved;
+                    System.Diagnostics.Debug.WriteLine($">> [GOOGLE_LOGIN] B6: ShowDialog xong, PasswordSaved = {shouldRedirect}");
                 }
-                else GoToMainForm();
+                System.Diagnostics.Debug.WriteLine(">> [GOOGLE_LOGIN] B7: using block kết thúc, setPassForm đã Dispose");
+
+                if (!shouldRedirect)
+                {
+                    System.Diagnostics.Debug.WriteLine(">> [GOOGLE_LOGIN] B8: PasswordSaved = false -> Logout");
+                    _authService.Logout();
+                    MessageBox.Show("Cài đặt mật khẩu chưa hoàn tất. Đăng nhập bị hủy.");
+                    return;
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($">> [GOOGLE_LOGIN] B9: Chuẩn bị gọi GoToMainForm(isRedirected={shouldRedirect})");
+            GoToMainForm(isRedirected: shouldRedirect);
+            System.Diagnostics.Debug.WriteLine(">> [GOOGLE_LOGIN] B10: GoToMainForm đã được gọi xong");
+        }
+
+        private void GoToMainForm(bool isRedirected = false)
+        {
+            System.Diagnostics.Debug.WriteLine($">> [GO_TO_MAIN] B1: isRedirected = {isRedirected}");
+            this.RedirectToProfile = isRedirected;
+
+            System.Diagnostics.Debug.WriteLine($">> [GO_TO_MAIN] B2: InvokeRequired = {this.InvokeRequired}");
+            System.Diagnostics.Debug.WriteLine($">> [GO_TO_MAIN] B3: IsDisposed = {this.IsDisposed}, IsHandleCreated = {this.IsHandleCreated}");
+
+            if (this.InvokeRequired)
+            {
+                System.Diagnostics.Debug.WriteLine(">> [GO_TO_MAIN] B4a: Gọi Invoke Close...");
+                this.Invoke(new Action(() =>
+                {
+                    System.Diagnostics.Debug.WriteLine(">> [GO_TO_MAIN] B5a: Đang Close() từ Invoke...");
+                    this.Close();
+                    System.Diagnostics.Debug.WriteLine(">> [GO_TO_MAIN] B6a: Close() xong");
+                }));
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine(">> [GO_TO_MAIN] B4b: Gọi Close() trực tiếp...");
+                this.Close();
+                System.Diagnostics.Debug.WriteLine(">> [GO_TO_MAIN] B5b: Close() xong");
             }
         }
 
@@ -50,9 +104,14 @@ namespace OmniSight.UI.Forms.Auth
         // --- CHUYỂN TRANG ĐĂNG KÝ ---
         private void lnkRegister_Click(object sender, EventArgs e)
         {
-            var registerForm = _serviceProvider.GetRequiredService<FrmRegister>();
-            registerForm.Show();
-            this.Hide();
+            // XÓA LỆNH this.Hide(); Ở ĐÂY
+
+            using (var registerForm = _serviceProvider.GetRequiredService<FrmRegister>())
+            {
+                registerForm.ShowDialog(this);
+            }
+
+            // XÓA LỆNH this.Show(); Ở ĐÂY
         }
         public string? AutoLoginToken { get; set; }
 
@@ -119,16 +178,7 @@ namespace OmniSight.UI.Forms.Auth
             GoToMainForm();
         }
 
-        private void GoToMainForm(bool isRedirected = false)
-        {
-            var mainForm = _serviceProvider.GetRequiredService<MainForm>();
-            if (isRedirected)
-            {
-                mainForm.StartAtProfile = true; // Thêm property này vào MainForm
-            }
-            mainForm.Show();
-            this.Hide();
-        }
+        
     }
 
     // --- FORM CHỌN TÀI KHOẢN (Để cùng file hoặc tách file tùy bạn) ---

@@ -65,7 +65,7 @@ namespace OmniSight.UI.Forms
 
             // 2. Thiết lập toàn bộ giao diện kết hợp
             InitializeCustomComponents();
-
+            ApplyThemeToStandardControls();
             // 3. Tải dữ liệu ban đầu
             LoadExamsAsync();
         }
@@ -79,9 +79,9 @@ namespace OmniSight.UI.Forms
             // --- TAB CONTROL ---
             tabControlMain = new MaterialTabControl { Dock = DockStyle.Fill };
 
-            tabExamList = new TabPage { Text = "Danh Sách Bài Thi", BackColor = Color.White };
-            tabExamDetail = new TabPage { Text = "Chi Tiết & Câu Hỏi", BackColor = Color.White };
-            tabResults = new TabPage { Text = "Kết Quả Học Sinh", BackColor = Color.White };
+            tabExamList = new TabPage { Text = "Danh Sách Bài Thi" };
+            tabExamDetail = new TabPage { Text = "Chi Tiết & Câu Hỏi" };
+            tabResults = new TabPage { Text = "Kết Quả Học Sinh" };
 
             // --- TAB SELECTOR (Thanh menu ngang Material) ---
             tabSelector = new MaterialTabSelector
@@ -109,14 +109,14 @@ namespace OmniSight.UI.Forms
 
         private void SetupExamListTab()
         {
-            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            var panel = new Panel { Dock = DockStyle.Fill };
 
             // 1. THANH CÔNG CỤ: Dùng FlowLayoutPanel để các nút tự động xếp hàng và cách đều nhau
             var toolbar = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
                 Height = 60, // Tăng chiều cao thanh công cụ lên một chút
-                BackColor = Color.FromArgb(245, 245, 245),
+               
                 Padding = new Padding(15, 12, 15, 10), // Tạo khoảng trống lề cho đẹp
                 WrapContents = false
             };
@@ -142,7 +142,7 @@ namespace OmniSight.UI.Forms
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(15), // Cách lề Form 15px ở mọi phía
-                BackColor = Color.White
+                
             };
 
             // 3. NÂNG CẤP BẢNG DATA: Tăng chiều cao hàng, đổi màu font
@@ -153,7 +153,7 @@ namespace OmniSight.UI.Forms
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                BackgroundColor = Color.White,
+               
                 BorderStyle = BorderStyle.FixedSingle, // Viền nhẹ
                 RowHeadersVisible = false,
                 GridColor = Color.FromArgb(220, 220, 220),
@@ -207,12 +207,12 @@ namespace OmniSight.UI.Forms
         private void SetupExamDetailTab()
         {
             // Panel chính bọc toàn bộ nội dung, cách lề 20px cho thoáng
-            var mainPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(20) };
+            var mainPanel = new Panel { Dock = DockStyle.Fill,  Padding = new Padding(20) };
 
             // ==========================================
             // 1. KHU VỰC NHẬP LIỆU (Nằm trên cùng)
             // ==========================================
-            var pnlTop = new Panel { Dock = DockStyle.Top, Height = 180, BackColor = Color.White };
+            var pnlTop = new Panel { Dock = DockStyle.Top, Height = 180 };
 
             var lblTitle = new MaterialLabel { Text = "Tên Bài Thi:", Location = new Point(0, 15), AutoSize = true };
             // Dùng Anchor Right để ô Tên bài thi tự động kéo dài ra kịch mép phải
@@ -235,7 +235,7 @@ namespace OmniSight.UI.Forms
             // ==========================================
             // 2. KHU VỰC NÚT LƯU / HỦY (Nằm dưới cùng)
             // ==========================================
-            var pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 70, BackColor = Color.White };
+            var pnlBottom = new Panel { Dock = DockStyle.Bottom, Height = 70 };
 
             btnSaveExam = new MaterialButton { Text = "💾 LƯU BÀI THI", Location = new Point(0, 15), AutoSize = true, Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained, UseAccentColor = true };
             btnSaveExam.Click += BtnSaveExam_Click;
@@ -267,7 +267,7 @@ namespace OmniSight.UI.Forms
                 AutoGenerateColumns = false,
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Color.White,
+               
                 BorderStyle = BorderStyle.FixedSingle,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 RowHeadersVisible = false,
@@ -302,7 +302,7 @@ namespace OmniSight.UI.Forms
 
         private void SetupResultsTab()
         {
-            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            var panel = new Panel { Dock = DockStyle.Fill };
 
             // ==========================================
             // 1. THANH BỘ LỌC VÀ NÚT BẤM (Phía trên)
@@ -369,7 +369,8 @@ namespace OmniSight.UI.Forms
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(15), // Tạo lề 15px xung quanh bảng cho thoáng
-                BackColor = Color.White
+                
+
             };
 
             // ==========================================
@@ -379,7 +380,7 @@ namespace OmniSight.UI.Forms
             {
                 Dock = DockStyle.Fill,
                 AutoGenerateColumns = false,
-                BackgroundColor = Color.White,
+                
                 BorderStyle = BorderStyle.FixedSingle,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
@@ -601,11 +602,20 @@ namespace OmniSight.UI.Forms
                 await LoadClassesAsync();
                 cbClasses.SelectedValue = _selectedExam.ClassId;
 
+                // === THÊM 2 DÒNG NÀY ĐỂ LOAD THỜI GIAN LÊN GIAO DIỆN ===
+                // Đề phòng trường hợp thời gian trong DB bị null
+                if (_selectedExam.StartTime != null && _selectedExam.StartTime > DateTime.MinValue)
+                    dtpStartTime.Value = (DateTime)_selectedExam.StartTime;
+
+                if (_selectedExam.EndTime != null && _selectedExam.EndTime > DateTime.MinValue)
+                    dtpEndTime.Value = (DateTime)_selectedExam.EndTime;
+                // =======================================================
+
                 // Load questions
                 var questions = await _examService.GetQuestionsByExamIdAsync(examId);
                 dgvQuestions.DataSource = questions;
 
-                tabControlMain.SelectedTab = tabExamDetail; // Chuyển sang tab chi tiết
+                tabControlMain.SelectedTab = tabExamDetail;
                 lblExamInfo.Text = $"Trạng thái: Đang sửa bài thi '{_selectedExam.Title}'";
             }
         }
@@ -673,27 +683,22 @@ namespace OmniSight.UI.Forms
         }
         private async void BtnSaveExam_Click(object sender, EventArgs e)
         {
-            // 1. Kiểm tra tên bài thi
+            // 1. Validate dữ liệu
             if (string.IsNullOrWhiteSpace(txtExamTitle.Text))
             {
                 MessageBox.Show("Vui lòng nhập tên bài thi!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtExamTitle.Focus();
                 return;
             }
-
-            // 2. Kiểm tra chọn lớp
             if (cbClasses.SelectedValue == null)
             {
                 MessageBox.Show("Vui lòng chọn lớp học!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             nudDuration.Validate();
-            // 3. KIỂM TRA THỜI GIAN TỐI THIỂU (Đã sửa để bắt lỗi chính xác)
-            // Sau khi đã chỉnh Minimum = 1 ở Bước 1, đoạn code này sẽ hoạt động
             if (nudDuration.Value < 5)
             {
-                MessageBox.Show("Thời gian làm bài phải tối thiểu là 5 phút!", "Cảnh báo",
-                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Thời gian làm bài phải tối thiểu là 5 phút!", "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 nudDuration.Focus();
                 return;
             }
@@ -704,9 +709,15 @@ namespace OmniSight.UI.Forms
 
                 if (_selectedExam == null)
                 {
-                    // TẠO MỚI
+                    // TẠO MỚI (Trường hợp Service không hỗ trợ truyền StartTime/EndTime)
                     var classId = (int)cbClasses.SelectedValue;
-                    await _examService.CreateExamAsync(classId, txtExamTitle.Text, (int)nudDuration.Value);
+                    var newExam = await _examService.CreateExamAsync(classId, txtExamTitle.Text, (int)nudDuration.Value);
+
+                    // Cập nhật ngay thời gian sau khi tạo
+                    newExam.StartTime = dtpStartTime.Value;
+                    newExam.EndTime = dtpEndTime.Value;
+                    await _examService.UpdateExamAsync(newExam);
+
                     MessageBox.Show("Tạo bài thi thành công!");
                 }
                 else
@@ -716,18 +727,19 @@ namespace OmniSight.UI.Forms
                     _selectedExam.DurationMinutes = (int)nudDuration.Value;
                     _selectedExam.ClassId = (int)cbClasses.SelectedValue;
 
-                    // Gọi hàm Update đã được sửa lỗi "Tracking" ở câu trước
-                    await _examService.UpdateExamAsync(_selectedExam);
+                    // QUAN TRỌNG: Gán giá trị thời gian TRƯỚC khi gọi hàm Update
+                    // Mặc định dtpStartTime.Value sẽ tự lấy giờ trên control, không cần click
                     _selectedExam.StartTime = dtpStartTime.Value;
                     _selectedExam.EndTime = dtpEndTime.Value;
+
+                    await _examService.UpdateExamAsync(_selectedExam);
+
                     MessageBox.Show("Cập nhật bài thi thành công!");
                 }
 
-                // Báo cho Dashboard biết để load lại dữ liệu
+                // Báo cho Dashboard biết để tự nó load lại dữ liệu (tuyệt đối không gọi LoadExamsAsync ở đây nữa)
                 this.DialogResult = DialogResult.OK;
-
-                // Đóng form luôn để tránh lỗi đa luồng và nạp chồng dữ liệu
-                
+                this.Close(); // Đóng form an toàn
             }
             catch (Exception ex)
             {
@@ -750,6 +762,12 @@ namespace OmniSight.UI.Forms
             txtExamTitle.Text = "";
             cbClasses.SelectedIndex = -1;
             nudDuration.Value = 60;
+
+            // === THÊM 2 DÒNG NÀY ===
+            dtpStartTime.Value = DateTime.Now; // Mặc định mở ngay bây giờ
+            dtpEndTime.Value = DateTime.Now.AddDays(1); // Mặc định đóng sau 1 ngày
+                                                        // =======================
+
             dgvQuestions.DataSource = null;
             _selectedExam = null;
         }
@@ -971,6 +989,43 @@ namespace OmniSight.UI.Forms
                     }
                 }
             }
+        }
+        private void ApplyThemeToStandardControls()
+        {
+            var msm = MaterialSkinManager.Instance;
+            bool isDark = msm.Theme == MaterialSkinManager.Themes.DARK;
+
+            // Lấy màu chuẩn từ Theme
+            Color bgColor = isDark ? Color.FromArgb(50, 50, 50) : Color.White;
+            Color textColor = isDark ? Color.White : Color.Black;
+            Color gridColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(230, 230, 230);
+            Color headerColor = isDark ? Color.FromArgb(40, 40, 40) : Color.FromArgb(245, 245, 245);
+
+            var grids = new[] { dgvExams, dgvQuestions, dgvResults };
+            foreach (var dgv in grids)
+            {
+                if (dgv == null) continue;
+                dgv.BackgroundColor = bgColor;
+                dgv.GridColor = gridColor;
+
+                // QUAN TRỌNG: Ép màu chữ và nền cho các ô dữ liệu
+                dgv.DefaultCellStyle.BackColor = bgColor;
+                dgv.DefaultCellStyle.ForeColor = textColor;
+                dgv.DefaultCellStyle.SelectionBackColor = msm.ColorScheme.AccentColor;
+                dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+
+                // QUAN TRỌNG: Ép màu cho Tiêu đề cột (Header)
+                dgv.ColumnHeadersDefaultCellStyle.BackColor = headerColor;
+                dgv.ColumnHeadersDefaultCellStyle.ForeColor = textColor;
+                dgv.EnableHeadersVisualStyles = false;
+
+                dgv.Invalidate(); // Ép vẽ lại ngay
+            }
+
+            // Cập nhật các control khác
+            cbClasses.BackColor = bgColor; cbClasses.ForeColor = textColor;
+            cbExamFilter.BackColor = bgColor; cbExamFilter.ForeColor = textColor;
+            nudDuration.BackColor = bgColor; nudDuration.ForeColor = textColor;
         }
     }
 }

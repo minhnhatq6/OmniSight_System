@@ -46,152 +46,330 @@ namespace OmniSight.UI.Forms
         private void InitializeComponent()
         {
             this.Text = "Chi Tiết Kết Quả Bài Thi";
-            this.Width = 900;
-            this.Height = 650;
+            this.Width = 950;
+            this.Height = 750;
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = Color.White;
             this.Font = new Font("Roboto", 10);
 
-            // Header Panel
+            // ==========================================
+            // 1. HEADER - Thông tin tổng quan
+            // ==========================================
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 120,
-                BackColor = Color.FromArgb(33, 150, 243),
-                Padding = new Padding(15)
+                Height = 110,
+                BackColor = Color.FromArgb(25, 118, 210),
+                Padding = new Padding(20, 10, 20, 10)
             };
 
             lblExamName = new MaterialLabel
             {
-                Text = $"📋 {_exam.Title}",
-                Font = new Font("Roboto", 14, FontStyle.Bold),
+                Text = $"📋  {_exam.Title}",
+                Font = new Font("Roboto", 15, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(10, 10)
+                Location = new Point(20, 10)
             };
 
             lblStudentName = new MaterialLabel
             {
-                Text = $"👤 Học Sinh: {_student?.FullName ?? "Unknown"}",
+                Text = $"👤  {_student?.FullName ?? "Unknown"}",
                 Font = new Font("Roboto", 11),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(220, 235, 255),
                 AutoSize = true,
-                Location = new Point(10, 40)
+                Location = new Point(20, 45)
             };
 
             lblScore = new MaterialLabel
             {
-                Text = $"🎯 Điểm: {_examResult?.Score:F1}/10",
-                Font = new Font("Roboto", 12, FontStyle.Bold),
-                ForeColor = Color.White,
+                Text = $"🎯  {_examResult?.Score:F1} / 10",
+                Font = new Font("Roboto", 13, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 235, 59),
                 AutoSize = true,
-                Location = new Point(10, 70)
+                Location = new Point(20, 75)
             };
 
             lblTimeInfo = new MaterialLabel
             {
-                Text = $"⏱️ Thời gian: {_examResult?.StartedAt:dd/MM/yyyy HH:mm} → {_examResult?.CompletedAt:dd/MM/yyyy HH:mm}",
+                Text = $"⏱️  {_examResult?.StartedAt:HH:mm dd/MM/yyyy}  →  {_examResult?.CompletedAt:HH:mm dd/MM/yyyy}",
                 Font = new Font("Roboto", 10),
-                ForeColor = Color.White,
+                ForeColor = Color.FromArgb(200, 225, 255),
                 AutoSize = true,
-                Location = new Point(400, 40)
+                Location = new Point(500, 75)
             };
 
             pnlHeader.Controls.AddRange(new Control[] { lblExamName, lblStudentName, lblScore, lblTimeInfo });
 
-            // DataGridView for answers
-            dgvAnswers = new DataGridView
-            {
-                Location = new Point(10, 130),
-                Width = 870,
-                Height = 400,
-                AutoGenerateColumns = false,
-                AllowUserToAddRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                RowHeadersVisible = false,
-                GridColor = Color.FromArgb(200, 200, 200)
-            };
-
-            dgvAnswers.Columns.AddRange(
-    new DataGridViewTextBoxColumn { Name = "QuestionId", DataPropertyName = "QuestionId", HeaderText = "ID", Visible = false },
-    new DataGridViewTextBoxColumn { Name = "QuestionNum", DataPropertyName = "QuestionNum", HeaderText = "Câu", Width = 50 },
-    new DataGridViewTextBoxColumn { Name = "Content", DataPropertyName = "Content", HeaderText = "Nội Dung Câu Hỏi", Width = 300 },
-
-    // Sửa DataPropertyName cho khớp với logic bên dưới
-    new DataGridViewTextBoxColumn { Name = "StudentAnswer", DataPropertyName = "StudentAnswer", HeaderText = "Đáp Án của HS", Width = 120, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Blue } },
-    new DataGridViewTextBoxColumn { Name = "CorrectAnswer", DataPropertyName = "CorrectAnswer", HeaderText = "Đáp Án Đúng", Width = 120, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Roboto", 10, FontStyle.Bold), ForeColor = Color.Green } },
-    new DataGridViewTextBoxColumn { Name = "Status", DataPropertyName = "Status", HeaderText = "Kết Quả", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } }
-);
-
-            // Buttons Panel
+            // ==========================================
+            // 2. BOTTOM BUTTONS
+            // ==========================================
             var pnlButtons = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 50,
-                BackColor = Color.FromArgb(240, 240, 240),
-                Padding = new Padding(10)
+                Height = 55,
+                BackColor = Color.FromArgb(245, 245, 245),
+                Padding = new Padding(15, 10, 15, 10)
             };
+
+            var line = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(220, 220, 220)
+            };
+            pnlButtons.Controls.Add(line);
 
             btnExportExcel = new MaterialButton
             {
-                Text = "📊 Xuất Excel",
-                Location = new Point(10, 10),
-                Width = 120,
-                Height = 35
+                Text = "📊 XUẤT EXCEL",
+                Location = new Point(15, 10),
+                AutoSize = true,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
             };
             btnExportExcel.Click += BtnExportExcel_Click;
 
             btnExportPDF = new MaterialButton
             {
-                Text = "📄 Xuất PDF",
-                Location = new Point(140, 10),
-                Width = 120,
-                Height = 35
+                Text = "📄 XUẤT PDF",
+                Location = new Point(155, 10),
+                AutoSize = true,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Outlined
             };
-            btnExportPDF.Click += BtnExportPDF_Click;
+            
 
             btnClose = new MaterialButton
             {
-                Text = "❌ Đóng",
-                Location = new Point(750, 10),
-                Width = 100,
-                Height = 35
+                Text = "ĐÓNG",
+                Location = new Point(820, 10),
+                AutoSize = true,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
+                UseAccentColor = false
             };
             btnClose.Click += (s, e) => this.Close();
-            var lblViolationTitle = new Label { Text = "📝 Nhật Ký Vi Phạm", Font = new Font("Roboto", 12, FontStyle.Bold), Location = new Point(10, 400), AutoSize = true };
+
+            pnlButtons.Controls.AddRange(new Control[] { btnExportExcel, btnClose });
+
+            // ==========================================
+            // 3. BODY - Chia đôi: Bảng câu hỏi + Vi phạm
+            // ==========================================
+            var pnlBody = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(15, 10, 15, 5),
+                BackColor = Color.White
+            };
+
+            // -- PHẦN DƯỚI: Vi phạm (chiều cao cố định) --
+            var pnlViolation = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 200,
+                BackColor = Color.White
+            };
+
+            var lblViolationTitle = new Label
+            {
+                Text = "⚠️  Nhật Ký Vi Phạm",
+                Font = new Font("Roboto", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(211, 47, 47),
+                Dock = DockStyle.Top,
+                Height = 30,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(0, 5, 0, 0)
+            };
 
             dgvViolations = new DataGridView
             {
-                Location = new Point(10, 430),
-                Width = 870,
-                Height = 300,
+                Dock = DockStyle.Fill,
                 AutoGenerateColumns = false,
                 AllowUserToAddRows = false,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ReadOnly = true
+                ReadOnly = true,
+                GridColor = Color.FromArgb(230, 230, 230),
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 36,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(255, 243, 243),
+                    ForeColor = Color.FromArgb(183, 28, 28),
+                    Font = new Font("Roboto", 10, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(5, 0, 0, 0)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Font = new Font("Roboto", 10),
+                    Padding = new Padding(5, 0, 0, 0),
+                    SelectionBackColor = Color.FromArgb(255, 235, 235),
+                    SelectionForeColor = Color.Black
+                },
+                RowTemplate = { Height = 34 }
             };
 
             dgvViolations.Columns.AddRange(
-                new DataGridViewTextBoxColumn { Name = "Timestamp", DataPropertyName = "Timestamp", HeaderText = "Thời gian", DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm:ss dd/MM" }, FillWeight = 20 },
-                new DataGridViewTextBoxColumn { Name = "ViolationType", DataPropertyName = "ViolationType", HeaderText = "Hành Vi", FillWeight = 50 },
-                new DataGridViewLinkColumn { Name = "ImageUrl", DataPropertyName = "ImageUrl", HeaderText = "Bằng Chứng", FillWeight = 30, LinkColor = Color.Blue, TrackVisitedState = false }
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Timestamp",
+                    DataPropertyName = "Timestamp",
+                    HeaderText = "Thời Gian",
+                    DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm:ss  dd/MM" },
+                    FillWeight = 20
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "ViolationType",
+                    DataPropertyName = "ViolationType",
+                    HeaderText = "Hành Vi Vi Phạm",
+                    FillWeight = 50
+                },
+                new DataGridViewLinkColumn
+                {
+                    Name = "ImageUrl",
+                    DataPropertyName = "ImageUrl",
+                    HeaderText = "Bằng Chứng",
+                    FillWeight = 30,
+                    LinkColor = Color.FromArgb(25, 118, 210),
+                    TrackVisitedState = false
+                }
             );
-
-            // Thêm sự kiện để bấm vào link mở ảnh
             dgvViolations.CellContentClick += DgvViolations_CellContentClick;
 
-            pnlButtons.Controls.AddRange(new Control[] { btnExportExcel, btnExportPDF, btnClose });
+            pnlViolation.Controls.Add(dgvViolations);
+            pnlViolation.Controls.Add(lblViolationTitle);
 
-            this.Controls.Add(dgvAnswers);
-            this.Controls.Add(lblViolationTitle); // Thêm tiêu đề
-            this.Controls.Add(dgvViolations);   // Thêm bảng vi phạm
-            this.Controls.Add(pnlHeader);
+            // Đường kẻ ngăn cách 2 bảng
+            var separator = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 10,
+                BackColor = Color.White
+            };
+
+            // -- PHẦN TRÊN: Bảng câu hỏi (lấp đầy còn lại) --
+            var lblAnswerTitle = new Label
+            {
+                Text = "📝  Chi Tiết Câu Trả Lời",
+                Font = new Font("Roboto", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(25, 118, 210),
+                Dock = DockStyle.Top,
+                Height = 30,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(0, 5, 0, 0)
+            };
+
+            dgvAnswers = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoGenerateColumns = false,
+                AllowUserToAddRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                RowHeadersVisible = false,
+                GridColor = Color.FromArgb(230, 230, 230),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersHeight = 40,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(227, 242, 253),
+                    ForeColor = Color.FromArgb(13, 71, 161),
+                    Font = new Font("Roboto", 10, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(5, 0, 0, 0)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Font = new Font("Roboto", 10),
+                    Padding = new Padding(5, 0, 0, 0),
+                    SelectionBackColor = Color.FromArgb(227, 242, 253),
+                    SelectionForeColor = Color.Black
+                },
+                RowTemplate = { Height = 40 }
+            };
+
+            dgvAnswers.Columns.AddRange(
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "QuestionId",
+                    DataPropertyName = "QuestionId",
+                    Visible = false
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "QuestionNum",
+                    DataPropertyName = "QuestionNum",
+                    HeaderText = "Câu",
+                    FillWeight = 8,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Roboto", 10, FontStyle.Bold)
+                    }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Content",
+                    DataPropertyName = "Content",
+                    HeaderText = "Nội Dung Câu Hỏi",
+                    FillWeight = 50
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "StudentAnswer",
+                    DataPropertyName = "StudentAnswer",
+                    HeaderText = "Đáp Án Học Sinh",
+                    FillWeight = 17,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Roboto", 11, FontStyle.Bold)
+                    }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "CorrectAnswer",
+                    DataPropertyName = "CorrectAnswer",
+                    HeaderText = "Đáp Án Đúng",
+                    FillWeight = 17,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Roboto", 11, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(46, 125, 50)
+                    }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Status",
+                    DataPropertyName = "Status",
+                    HeaderText = "Kết Quả",
+                    FillWeight = 13,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Roboto", 10, FontStyle.Bold)
+                    }
+                }
+            );
+
+            pnlBody.Controls.Add(dgvAnswers);
+            pnlBody.Controls.Add(lblAnswerTitle);
+            pnlBody.Controls.Add(separator);
+            pnlBody.Controls.Add(pnlViolation);
+
+            // ==========================================
+            // LẮP RÁP FORM
+            // ==========================================
+            this.Controls.Add(pnlBody);
             this.Controls.Add(pnlButtons);
+            this.Controls.Add(pnlHeader);
         }
         private void DgvViolations_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -340,10 +518,7 @@ namespace OmniSight.UI.Forms
             }
         }
 
-        private void BtnExportPDF_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show("Tính năng xuất PDF sẽ được triển khai trong phiên bản tiếp theo.", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+        
 
         private void ExportToExcel(string filePath)
         {

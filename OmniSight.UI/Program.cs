@@ -36,7 +36,8 @@ namespace OmniSight.UI
                 .ConfigureServices((context, services) =>
                 {
                     services.AddDbContext<OmniSightDbContext>(options =>
-                        options.UseSqlServer(context.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(context.Configuration.GetConnectionString("DefaultConnection")),
+        ServiceLifetime.Transient);
 
                     // Đăng ký các Service
                     services.AddScoped<AuthService>();
@@ -86,28 +87,60 @@ namespace OmniSight.UI
                 isDeepLinkLogin = HandleDeepLink(args[0], authService).GetAwaiter().GetResult();
             }
 
+            // Trong file Program.cs, tìm đoạn logic khởi động (Bước 4) và dán đè đoạn này:
+
             // 4. LOGIC KHỞI ĐỘNG
             if (isDeepLinkLogin)
             {
-                // NẾU VÀO TỪ MAIL: Mở thẳng MainForm và yêu cầu nhảy vào Profile
                 var mainForm = ServiceProvider.GetRequiredService<MainForm>();
-                mainForm.StartAtProfile = true; // Gán cờ để MainForm biết cần mở tab Profile
+                mainForm.StartAtProfile = true;
                 Application.Run(mainForm);
             }
             else
-            {
-                // LOGIC KHỞI ĐỘNG BÌNH THƯỜNG
+            {// Thử tự động đăng nhập từ session cũ
                 bool isLoggedIn = authService.TryAutoLoginAsync().GetAwaiter().GetResult();
+
                 if (isLoggedIn)
                 {
                     Application.Run(ServiceProvider.GetRequiredService<MainForm>());
                 }
                 else
                 {
-                    Application.Run(ServiceProvider.GetRequiredService<FrmLogin>());
+                    // --- CÁCH CHUYỂN FORM MỚI: CHẮC CHẮN KHÔNG VĂNG ---
+                    var loginForm = ServiceProvider.GetRequiredService<FrmLogin>();
+
+                    // Chạy Form Login là vòng lặp chính đầu tiên
+                    Application.Run(loginForm);
+
+                    // Sau khi loginForm ĐÓNG LẠI (this.Close), mã sẽ chạy xuống đây
+                    // Ta kiểm tra xem AuthService đã có User chưa (nghĩa là login thành công)
+                    // THÊM DEBUG TỪ ĐÂY
+                    System.Diagnostics.Debug.WriteLine(">> [PROGRAM] Application.Run(loginForm) đã kết thúc");
+                    System.Diagnostics.Debug.WriteLine($">> [PROGRAM] authService.CurrentUser = {authService.CurrentUser?.FullName ?? "NULL"}");
+                    System.Diagnostics.Debug.WriteLine($">> [PROGRAM] loginForm.RedirectToProfile = {loginForm.RedirectToProfile}");
+                    System.Diagnostics.Debug.WriteLine($">> [PROGRAM] loginForm.IsDisposed = {loginForm.IsDisposed}");
+
+                    if (authService.CurrentUser != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine(">> [PROGRAM] CurrentUser != null -> Tạo MainForm...");
+                        var mainForm = ServiceProvider.GetRequiredService<MainForm>();
+                        if (loginForm.RedirectToProfile)
+                        {
+                            System.Diagnostics.Debug.WriteLine(">> [PROGRAM] StartAtProfile = true");
+                            mainForm.StartAtProfile = true;
+                        }
+                        System.Diagnostics.Debug.WriteLine(">> [PROGRAM] Gọi Application.Run(mainForm)...");
+                        Application.Run(mainForm);
+                        System.Diagnostics.Debug.WriteLine(">> [PROGRAM] Application.Run(mainForm) đã kết thúc");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine(">> [PROGRAM] CurrentUser == NULL -> Không mở MainForm!");
+                    }
                 }
             }
-        }
+            }
+
 
         // Hàm xử lý bóc tách link và thực hiện đăng nhập tự động
         private static async Task<bool> HandleDeepLink(string url, AuthService authService)
