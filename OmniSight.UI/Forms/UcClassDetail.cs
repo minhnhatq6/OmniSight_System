@@ -34,7 +34,21 @@ namespace OmniSight.UI.Forms
         public UcClassDetail(StreamService streamService, ClassService classService, AuthService authService, int currentUserId, int classId, bool isTeacherOfThisClass)
         {
             InitializeComponent();
+            flpAssignments.Resize += flpAssignments_Resize;
+            flpAssignments.FlowDirection = FlowDirection.TopDown;
+            flpAssignments.WrapContents = false;
+            flpGrading.Resize += flpGrading_Resize;
+            flpExams.Resize += flpExams_Resize;
+            flpMembers.Resize += flpMembers_Resize;
 
+            flpGrading.FlowDirection = FlowDirection.TopDown;
+            flpGrading.WrapContents = false;
+
+            flpExams.FlowDirection = FlowDirection.TopDown;
+            flpExams.WrapContents = false;
+
+            flpMembers.FlowDirection = FlowDirection.TopDown;
+            flpMembers.WrapContents = false;
             // Debug: In ra số tabs sau InitializeComponent
             System.Diagnostics.Debug.WriteLine($"[After InitializeComponent] Total tabs: {materialTabControl1.TabPages.Count}");
             foreach (TabPage tab in materialTabControl1.TabPages)
@@ -55,6 +69,100 @@ namespace OmniSight.UI.Forms
             ApplyCurrentTheme();
            
 
+        }
+        private void flpGrading_Resize(object sender, EventArgs e)
+        {
+            ResizeGradingCards();
+        }
+
+        private void flpExams_Resize(object sender, EventArgs e)
+        {
+            ResizeExamCards();
+        }
+
+        private void flpMembers_Resize(object sender, EventArgs e)
+        {
+            ResizeMemberSearchBox();
+            ResizeMemberCards();
+        }
+
+        private void ResizeGradingCards()
+        {
+            if (flpGrading == null) return;
+
+            int cardWidth = Math.Max(320, flpGrading.ClientSize.Width - 25);
+
+            foreach (Control control in flpGrading.Controls)
+            {
+                if (control is not Panel card) continue;
+
+                card.Width = cardWidth;
+
+                foreach (Control child in card.Controls)
+                {
+                    if (child is Panel submissionPanel && (submissionPanel.Tag as string) == "grading_submission_panel")
+                    {
+                        submissionPanel.Width = card.Width - 40;
+
+                        Button btnOpenSubmission = null;
+                        Button btnGrade = null;
+
+                        foreach (Control inner in submissionPanel.Controls)
+                        {
+                            if (inner is Button btn)
+                            {
+                                if ((btn.Tag as string) == "grading_open") btnOpenSubmission = btn;
+                                if ((btn.Tag as string) == "grading_grade") btnGrade = btn;
+                            }
+                        }
+
+                        if (btnOpenSubmission != null)
+                        {
+                            btnOpenSubmission.Location = new Point(submissionPanel.Width - 150, 5);
+                        }
+
+                        if (btnGrade != null)
+                        {
+                            btnGrade.Location = new Point(submissionPanel.Width - 75, 5);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ResizeExamCards()
+        {
+            if (flpExams == null) return;
+
+            int cardWidth = Math.Max(320, flpExams.ClientSize.Width - 25);
+
+            foreach (Control control in flpExams.Controls)
+            {
+                if (control is not Panel card) continue;
+
+                card.Width = cardWidth;
+
+                foreach (Control child in card.Controls)
+                {
+                    if (child is Button btn)
+                    {
+                        btn.Location = new Point(card.Width - btn.Width - 15, btn.Location.Y);
+                    }
+                }
+            }
+        }
+
+        private void ResizeMemberCards()
+        {
+            if (flpMembers == null) return;
+
+            int cardWidth = Math.Max(320, flpMembers.ClientSize.Width - 25);
+
+            foreach (Control control in flpMembers.Controls)
+            {
+                if (control is not Panel card) continue;
+                card.Width = cardWidth;
+            }
         }
 
         private void ApplyCurrentTheme()
@@ -98,6 +206,7 @@ namespace OmniSight.UI.Forms
         private bool _examsLoaded = false;
         private List<OmniSight.Core.Entities.ClassMember> _allMembers = new();
         private string _memberSearchKeyword = string.Empty;
+        private TextBox _memberSearchTextBox;
 
         private async void UcClassDetail_VisibleChanged(object sender, EventArgs e)
         {
@@ -175,6 +284,8 @@ namespace OmniSight.UI.Forms
                     var card = CreateExamCard(exam, _isTeacherOfThisClass);
                     flpExams.Controls.Add(card);
                 }
+                ResizeExamCards();
+                flpExams.PerformLayout();
             }
             catch (Exception ex)
             {
@@ -187,7 +298,7 @@ namespace OmniSight.UI.Forms
             Panel card = new Panel
             {
                 // Lấy chiều rộng bằng Flp trừ đi một chút margin cho khỏi sát viền
-                Width = flpExams.Width > 50 ? flpExams.Width - 30 : 800,
+                Width = Math.Max(320, flpExams.ClientSize.Width - 25),
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
@@ -393,7 +504,7 @@ namespace OmniSight.UI.Forms
         {
             Panel card = new Panel
             {
-                Width = flpStream.Width - 30,
+                Width = Math.Max(320, flpStream.ClientSize.Width - 25),
                 AutoSize = true,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
@@ -434,23 +545,21 @@ namespace OmniSight.UI.Forms
                 var user = _authService.CurrentUser;
                 if (user == null) return;
 
-                // --- BƯỚC 1: QUAN TRỌNG - PHÂN QUYỀN TRƯỚC ---
-                // Phải ẩn/hiện bảng giao bài ngay lập tức cho dù có bài tập hay không
                 if (_isTeacherOfThisClass)
                 {
-                    ConfigureTeacherAssignmentUI(); // Hiện bảng giao bài
+                    ConfigureTeacherAssignmentUI();
                 }
                 else
                 {
-                    ConfigureStudentAssignmentUI(); // Ẩn bảng giao bài
+                    ConfigureStudentAssignmentUI();
                 }
 
-                // Sau đó mới đi lấy dữ liệu từ Database
                 var assignments = await _assignmentService.GetAssignmentsByClassIdAsync(_classId);
 
                 flpAssignments.Controls.Clear();
+                flpAssignments.FlowDirection = FlowDirection.TopDown;
+                flpAssignments.WrapContents = false;
 
-                // --- BƯỚC 2: KIỂM TRA TRỐNG SAU ---
                 if (assignments == null || assignments.Count == 0)
                 {
                     flpAssignments.Controls.Add(new Label
@@ -460,16 +569,16 @@ namespace OmniSight.UI.Forms
                         Padding = new Padding(10),
                         ForeColor = Color.Gray
                     });
-                    return; // Thoát ở đây là an toàn vì panel đã được ẩn ở Bước 1 rồi
+                    return;
                 }
 
-                // Hiển thị danh sách bài tập (giữ nguyên code cũ)
                 foreach (var assignment in assignments)
                 {
                     var assignmentCard = CreateAssignmentCard(assignment, _isTeacherOfThisClass);
                     flpAssignments.Controls.Add(assignmentCard);
                 }
 
+                ResizeAssignmentCards();
                 flpAssignments.PerformLayout();
             }
             catch (Exception ex)
@@ -478,6 +587,60 @@ namespace OmniSight.UI.Forms
             }
         }
 
+        private void flpAssignments_Resize(object sender, EventArgs e)
+        {
+            ResizeAssignmentCards();
+        }
+
+        private void ResizeAssignmentCards()
+        {
+            if (flpAssignments == null) return;
+
+            int cardWidth = Math.Max(320, flpAssignments.ClientSize.Width - 25);
+
+            foreach (Control control in flpAssignments.Controls)
+            {
+                if (control is not Panel card) continue;
+
+                card.Width = cardWidth;
+
+                foreach (Control child in card.Controls)
+                {
+                    if (child is Label label && label.Tag as string == "assignment_description")
+                    {
+                        label.MaximumSize = new Size(card.Width - 40, 0);
+                    }
+
+                    if (child is Panel bottomPanel && bottomPanel.Tag as string == "assignment_bottom")
+                    {
+                        bottomPanel.Width = card.Width - 20;
+
+                        FlowLayoutPanel actionPanel = null;
+                        foreach (Control inner in bottomPanel.Controls)
+                        {
+                            if (inner is FlowLayoutPanel flp && flp.Tag as string == "assignment_actions")
+                            {
+                                actionPanel = flp;
+                                break;
+                            }
+                        }
+
+                        if (actionPanel != null)
+                        {
+                            actionPanel.Location = new Point(
+                                bottomPanel.ClientSize.Width - actionPanel.Width,
+                                Math.Max(0, (bottomPanel.ClientSize.Height - actionPanel.Height) / 2)
+                            );
+                        }
+                    }
+
+                    if (child is Button btn && btn.Tag as string == "student_resubmit")
+                    {
+                        btn.Location = new Point(card.Width - btn.Width - 10, btn.Location.Y);
+                    }
+                }
+            }
+        }
         private void ConfigureTeacherAssignmentUI()
         {
             // Bản đồ: Thực hiện = Tạo bài tập
@@ -530,6 +693,7 @@ namespace OmniSight.UI.Forms
                             ForeColor = Color.Gray,
                             Margin = new Padding(10)
                         });
+                        ResizeGradingCards();
                         flpGrading.PerformLayout();
                         return;
                     }
@@ -575,7 +739,7 @@ namespace OmniSight.UI.Forms
                         flpGrading.Controls.Add(studentGradeCard);
                     }
                 }
-
+                ResizeGradingCards();
                 flpGrading.PerformLayout();
             }
             catch (Exception ex)
@@ -586,24 +750,20 @@ namespace OmniSight.UI.Forms
 
         private Panel CreateGradingCard(OmniSight.Core.Entities.Assignment assignment)
         {
-            // Lấy chiều rộng của UserControl, nếu quá nhỏ thì lấy mặc định 800
-            int cardWidth = this.Width > 100 ? this.Width - 50 : 780;
+            int cardWidth = Math.Max(320, flpGrading.ClientSize.Width - 25);
 
             Panel card = new Panel
             {
                 Width = cardWidth,
-                Height = 150, // Cho một chiều cao mặc định
-                AutoSize = true, // Để true nhưng phải kết hợp với FlowLayoutPanel đúng
+                Height = 150,
+                AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(10, 10, 10, 15),
                 BackColor = _cardBackgroundColor,
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Tag = "grading_card"
             };
 
-            // Đảm bảo card không bao giờ nhỏ hơn cardWidth
-            card.MinimumSize = new Size(cardWidth, 50);
-
-            // Tiêu đề bài tập
             Label lblTitle = new Label
             {
                 Text = $"📋 {assignment.Title}",
@@ -616,7 +776,6 @@ namespace OmniSight.UI.Forms
 
             int currentY = lblTitle.Bottom + 10;
 
-            // Tổng số bài nộp
             int totalSubmissions = assignment.Submissions?.Count ?? 0;
             Label lblSubmissionCount = new Label
             {
@@ -629,7 +788,6 @@ namespace OmniSight.UI.Forms
             card.Controls.Add(lblSubmissionCount);
             currentY = lblSubmissionCount.Bottom + 10;
 
-            // Hiển thị danh sách người nộp
             if (assignment.Submissions == null || assignment.Submissions.Count == 0)
             {
                 Label lblNoSubmission = new Label
@@ -645,24 +803,22 @@ namespace OmniSight.UI.Forms
             }
             else
             {
-                // Hiển thị danh sách các bài nộp dưới dạng bảng nhỏ
                 foreach (var submission in assignment.Submissions)
                 {
                     string studentName = submission.Student?.FullName ?? "Không xác định";
                     string statusText = submission.Score.HasValue ? $"Đã chấm: {submission.Score}/10" : "Chưa chấm";
-                    string statusColor = submission.Score.HasValue ? "Green" : "Orange";
 
-                    var submissionPanel = new Panel
+                    Panel submissionPanel = new Panel
                     {
                         Width = card.Width - 40,
                         Height = 80,
                         Location = new Point(10, currentY),
                         BackColor = _secondaryCardBackgroundColor,
                         BorderStyle = BorderStyle.None,
-                        Margin = new Padding(0, 0, 0, 5)
+                        Margin = new Padding(0, 0, 0, 5),
+                        Tag = "grading_submission_panel"
                     };
 
-                    // Tên học sinh
                     Label lblStudent = new Label
                     {
                         Text = studentName,
@@ -673,7 +829,6 @@ namespace OmniSight.UI.Forms
                     };
                     submissionPanel.Controls.Add(lblStudent);
 
-                    // Trạng thái chấm điểm
                     Label lblStatus = new Label
                     {
                         Text = statusText,
@@ -684,39 +839,47 @@ namespace OmniSight.UI.Forms
                     };
                     submissionPanel.Controls.Add(lblStatus);
 
-                    // Nút mở link
                     Button btnOpenSubmission = new Button
                     {
                         Text = "Xem",
                         AutoSize = false,
                         Width = 70,
                         Height = 28,
-                        Location = new Point(submissionPanel.Width - 150, 5),
                         BackColor = Color.FromArgb(33, 150, 243),
                         ForeColor = Color.White,
                         Font = new Font("Segoe UI", 8),
                         FlatStyle = FlatStyle.Flat,
-                        Cursor = Cursors.Hand
+                        Cursor = Cursors.Hand,
+                        Tag = "grading_open"
                     };
                     btnOpenSubmission.Click += (sender, e) => OpenLink(submission.FileOrLinkUrl);
                     submissionPanel.Controls.Add(btnOpenSubmission);
 
-                    // Nút chấm điểm
                     Button btnGrade = new Button
                     {
                         Text = "Chấm",
                         AutoSize = false,
                         Width = 70,
                         Height = 28,
-                        Location = new Point(submissionPanel.Width - 75, 5),
                         BackColor = Color.FromArgb(76, 175, 80),
                         ForeColor = Color.White,
                         Font = new Font("Segoe UI", 8),
                         FlatStyle = FlatStyle.Flat,
-                        Cursor = Cursors.Hand
+                        Cursor = Cursors.Hand,
+                        Tag = "grading_grade"
                     };
                     btnGrade.Click += (sender, e) => GradeSubmission(submission.SubmissionId);
                     submissionPanel.Controls.Add(btnGrade);
+
+                    Action layoutSubmissionPanel = () =>
+                    {
+                        submissionPanel.Width = card.Width - 40;
+                        btnOpenSubmission.Location = new Point(submissionPanel.Width - 150, 5);
+                        btnGrade.Location = new Point(submissionPanel.Width - 75, 5);
+                    };
+
+                    layoutSubmissionPanel();
+                    submissionPanel.Resize += (s, e) => layoutSubmissionPanel();
 
                     card.Controls.Add(submissionPanel);
                     currentY += 90;
@@ -731,7 +894,7 @@ namespace OmniSight.UI.Forms
         {
             Panel card = new Panel
             {
-                Width = flpGrading.Width - 30,
+                Width = Math.Max(320, flpGrading.ClientSize.Width - 25),
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
@@ -1047,15 +1210,14 @@ namespace OmniSight.UI.Forms
         {
             Panel card = new Panel
             {
-                Width = flpAssignments.Width - 60,
+                Width = Math.Max(320, flpAssignments.ClientSize.Width - 25),
                 AutoSize = false,
-                Padding = new Padding(15),
+                Padding = new Padding(12),
                 Margin = new Padding(5, 5, 5, 15),
                 BackColor = _cardBackgroundColor,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            // 1. Tiêu đề (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
             Label lblTitle = new Label
             {
                 Text = assignment.Title ?? "Không có tiêu đề",
@@ -1066,37 +1228,110 @@ namespace OmniSight.UI.Forms
             };
             card.Controls.Add(lblTitle);
 
-            int currentY = lblTitle.Bottom + 10; // Biến Y sẽ chạy dần xuống dưới
+            int currentY = lblTitle.Bottom + 10;
 
-            // 2. Mô tả (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
             Label lblDescription = new Label
             {
-                Text = assignment.Description ?? "Không có mô tả",
+                Text = string.IsNullOrWhiteSpace(assignment.Description) ? "Không có mô tả" : assignment.Description,
                 Font = new Font("Segoe UI", 10),
                 ForeColor = _primaryTextColor,
                 AutoSize = true,
-                MaximumSize = new Size(card.Width - 200, 0), // Trừ hao nhiều hơn để không chạm nút
-                Location = new Point(10, currentY)
+                MaximumSize = new Size(card.Width - 40, 0),
+                Location = new Point(10, currentY),
+                Tag = "assignment_description"
             };
             card.Controls.Add(lblDescription);
 
             currentY = lblDescription.Bottom + 10;
 
-            // 3. Hạn chót (ADD NGAY VÀ TÍNH TỌA ĐỘ Y)
-            string dueText = assignment.DueDate.HasValue ? $"Hạn chót: {assignment.DueDate:dd/MM/yyyy HH:mm}" : "Không có hạn chót";
+            Panel bottomPanel = new Panel
+            {
+                Width = card.Width - 20,
+                Height = 40,
+                Location = new Point(10, currentY),
+                Tag = "assignment_bottom"
+            };
+
+            string dueText = assignment.DueDate.HasValue
+                ? $"Hạn chót: {assignment.DueDate:dd/MM/yyyy HH:mm}"
+                : "Không có hạn chót";
+
             Label lblDueDate = new Label
             {
                 Text = dueText,
                 Font = new Font("Segoe UI", 9, FontStyle.Italic),
                 ForeColor = assignment.DueDate.HasValue && assignment.DueDate < DateTime.Now ? Color.Red : _secondaryTextColor,
                 AutoSize = true,
-                Location = new Point(10, currentY)
+                Location = new Point(0, 11)
             };
-            card.Controls.Add(lblDueDate);
+            bottomPanel.Controls.Add(lblDueDate);
 
-            currentY = lblDueDate.Bottom + 15;
+            FlowLayoutPanel actionPanel = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Tag = "assignment_actions"
+            };
 
-            // Nếu có link tài nguyên, thêm nút mở
+            if (isTeacher)
+            {
+                Button btnEdit = new Button
+                {
+                    Text = "Sửa",
+                    Width = 70,
+                    Height = 30,
+                    BackColor = Color.FromArgb(255, 193, 7),
+                    FlatStyle = FlatStyle.Flat,
+                    Margin = new Padding(0, 0, 8, 0),
+                    Cursor = Cursors.Hand
+                };
+                btnEdit.Click += (s, e) =>
+                {
+                    _editingAssignmentId = assignment.AssignmentId;
+                    txtAssignmentName.Text = assignment.Title;
+                    txtAssignmentDescription.Text = assignment.Description;
+                    txtDriveLink.Text = assignment.AttachmentUrl;
+                    if (assignment.DueDate.HasValue) dtpDueDate.Value = assignment.DueDate.Value;
+                    btnActionAssignment.Text = "LƯU THAY ĐỔI";
+                    txtAssignmentName.Focus();
+                };
+
+                Button btnDelete = new Button
+                {
+                    Text = "Xóa",
+                    Width = 80,
+                    Height = 30,
+                    BackColor = Color.FromArgb(244, 67, 54),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 9),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand,
+                    Margin = new Padding(0)
+                };
+                btnDelete.Click += async (sender, e) => await DeleteAssignment(assignment.AssignmentId);
+
+                actionPanel.Controls.Add(btnEdit);
+                actionPanel.Controls.Add(btnDelete);
+                bottomPanel.Controls.Add(actionPanel);
+
+                actionPanel.Location = new Point(
+                    bottomPanel.Width - actionPanel.Width,
+                    Math.Max(0, (bottomPanel.Height - actionPanel.Height) / 2)
+                );
+
+                bottomPanel.Resize += (s, e) =>
+                {
+                    actionPanel.Location = new Point(
+                        bottomPanel.ClientSize.Width - actionPanel.Width,
+                        Math.Max(0, (bottomPanel.ClientSize.Height - actionPanel.Height) / 2)
+                    );
+                };
+            }
+
+            card.Controls.Add(bottomPanel);
+            currentY = bottomPanel.Bottom + 10;
+
             if (!string.IsNullOrEmpty(assignment.AttachmentUrl))
             {
                 Button btnOpenLink = new Button
@@ -1108,61 +1343,21 @@ namespace OmniSight.UI.Forms
                     Location = new Point(10, currentY),
                     BackColor = Color.FromArgb(33, 150, 243),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                    Font = new Font("Segoe UI", 9),
                     FlatStyle = FlatStyle.Flat,
                     Cursor = Cursors.Hand
                 };
                 btnOpenLink.Click += (sender, e) => OpenLink(assignment.AttachmentUrl);
                 card.Controls.Add(btnOpenLink);
-                currentY += 40; // Tăng Y để nút dưới không đè lên
+                currentY += 40;
             }
 
-            // Nếu là giáo viên, thêm nút xoá / sửa
-            if (isTeacher)
-            {
-                Button btnEdit = new Button
-                {
-                    Text = "Sửa",
-                    Width = 70,
-                    Height = 30,
-                    Location = new Point(card.Width - 180, lblDueDate.Top),
-                    BackColor = Color.FromArgb(255, 193, 7), // Màu vàng
-                    FlatStyle = FlatStyle.Flat
-                };
-                btnEdit.Click += (s, e) => {
-                    _editingAssignmentId = assignment.AssignmentId;
-                    txtAssignmentName.Text = assignment.Title;
-                    txtAssignmentDescription.Text = assignment.Description;
-                    txtDriveLink.Text = assignment.AttachmentUrl;
-                    if (assignment.DueDate.HasValue) dtpDueDate.Value = assignment.DueDate.Value;
-                    btnActionAssignment.Text = "LƯU THAY ĐỔI";
-                    txtAssignmentName.Focus();
-                };
-                card.Controls.Add(btnEdit);
-
-                Button btnDelete = new Button
-                {
-                    Text = "Xóa",
-                    AutoSize = false,
-                    Width = 80,
-                    Height = 30,
-                    Location = new Point(card.Width - 100, lblDueDate.Top),
-                    BackColor = Color.FromArgb(244, 67, 54),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnDelete.Click += async (sender, e) => await DeleteAssignment(assignment.AssignmentId);
-                card.Controls.Add(btnDelete);
-            }
-            else // NHÁNH DÀNH CHO HỌC SINH
+            if (!isTeacher)
             {
                 var mySubmission = assignment.Submissions?.FirstOrDefault(s => s.StudentId == _currentUserId);
 
                 if (mySubmission != null)
                 {
-                    // ĐÃ NỘP BÀI
                     Label lblStatus = new Label
                     {
                         Text = $"Đã nộp: {mySubmission.SubmittedAt:dd/MM HH:mm}",
@@ -1177,22 +1372,21 @@ namespace OmniSight.UI.Forms
                     {
                         Text = "Nộp lại",
                         Size = new Size(80, 25),
-                        Location = new Point(card.Width - 100, currentY - 5),
+                        Location = new Point(card.Width - 90, currentY - 3),
                         BackColor = Color.LightSalmon,
                         FlatStyle = FlatStyle.Flat,
-                        Cursor = Cursors.Hand
+                        Cursor = Cursors.Hand,
+                        Tag = "student_resubmit"
                     };
                     btnResubmit.Click += (s, e) => SubmitAssignment(assignment.AssignmentId);
                     card.Controls.Add(btnResubmit);
 
-                    currentY += 35; // Cộng thêm chiều cao cho khung
+                    currentY += 35;
                 }
                 else
                 {
-                    // CHƯA NỘP BÀI
                     if (assignment.DueDate.HasValue && DateTime.Now > assignment.DueDate.Value)
                     {
-                        // QUÁ HẠN
                         Label lblExpired = new Label
                         {
                             Text = "Đã hết hạn nộp bài",
@@ -1201,11 +1395,10 @@ namespace OmniSight.UI.Forms
                             Location = new Point(10, currentY)
                         };
                         card.Controls.Add(lblExpired);
-                        currentY += 30; // Cộng thêm chiều cao
+                        currentY += 30;
                     }
                     else
                     {
-                        // CÒN HẠN -> HIỆN NÚT NỘP BÀI
                         Button btnSubmit = new Button
                         {
                             Text = "NỘP BÀI",
@@ -1220,16 +1413,12 @@ namespace OmniSight.UI.Forms
                         btnSubmit.Click += (s, e) => SubmitAssignment(assignment.AssignmentId);
                         card.Controls.Add(btnSubmit);
 
-                        currentY += 45; // ĐÂY LÀ DÒNG QUAN TRỌNG ĐỂ NÚT KHÔNG BỊ CHE MẤT
+                        currentY += 45;
                     }
                 }
             }
 
-            
-
-            // Gán chiều cao cuối cùng cho khung card
             card.Height = currentY + 10;
-
             return card;
         }
 
@@ -1415,21 +1604,24 @@ namespace OmniSight.UI.Forms
                 };
                 flpMembers.Controls.Add(lblTitle);
 
-                var txtSearch = new TextBox
+                _memberSearchTextBox = new TextBox
                 {
-                    Width = Math.Max(360, flpMembers.Width - 50),
+                    Width = Math.Max(360, flpMembers.ClientSize.Width - 40),
                     Font = new Font("Segoe UI", 10),
                     BorderStyle = BorderStyle.FixedSingle,
                     PlaceholderText = "Tìm học sinh theo tên hoặc email...",
                     Margin = new Padding(10, 0, 10, 15),
                     Text = _memberSearchKeyword
                 };
-                txtSearch.TextChanged += (s, e) =>
+                _memberSearchTextBox.TextChanged += (s, e) =>
                 {
-                    _memberSearchKeyword = txtSearch.Text.Trim();
+                    _memberSearchKeyword = _memberSearchTextBox.Text.Trim();
                     ApplyMemberFilter();
+                    ResizeMemberCards();
+                    flpMembers.PerformLayout();
                 };
-                flpMembers.Controls.Add(txtSearch);
+                flpMembers.Controls.Add(_memberSearchTextBox);
+                ResizeMemberSearchBox();
 
                 var members = await _classService.GetClassMembersAsync(_classId);
                 _allMembers = members ?? new List<OmniSight.Core.Entities.ClassMember>();
@@ -1442,7 +1634,15 @@ namespace OmniSight.UI.Forms
                 MessageBox.Show("Lỗi tải danh sách thành viên: " + ex.Message);
             }
         }
+        private void ResizeMemberSearchBox()
+        {
+            if (flpMembers == null || flpMembers.Controls.Count < 2) return;
 
+            if (flpMembers.Controls[1] is TextBox txtSearch)
+            {
+                txtSearch.Width = Math.Max(360, flpMembers.ClientSize.Width - 40);
+            }
+        }
         private void ApplyMemberFilter()
         {
             // Keep title + search box, remove old member cards/messages.
@@ -1481,13 +1681,15 @@ namespace OmniSight.UI.Forms
                 var memberCard = CreateMemberCard(member);
                 flpMembers.Controls.Add(memberCard);
             }
+            ResizeMemberCards();
+            ResizeMemberSearchBox();
         }
 
         private Panel CreateMemberCard(OmniSight.Core.Entities.ClassMember member)
         {
             Panel card = new Panel
             {
-                Width = flpMembers.Width - 30,
+                Width = Math.Max(320, flpMembers.ClientSize.Width - 25),
                 AutoSize = false,
                 Padding = new Padding(15),
                 Margin = new Padding(5, 5, 5, 15),
