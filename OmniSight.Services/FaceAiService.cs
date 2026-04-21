@@ -1,28 +1,52 @@
 ﻿using Emgu.CV;
-using Emgu.CV.Dnn; // Bắt buộc phải có để dùng Backend và Target
+using Emgu.CV.Dnn;
 using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace OmniSight.Services
 {
     public enum FaceStatus
     {
-        Normal,
-        NoFace,
-        MultipleFaces,
+        Normal,         // Bình thường
+        NoFace,         // Không thấy mặt
+        MultipleFaces,  // Có nhiều hơn 1 mặt
         TooFar,         // Ngồi quá xa
-        TooClose,       // Ngồi quá gần (dí sát mặt vào màn hình)
-        OutOfSafeZone,  // Lệch khỏi vùng giữa màn hình
-        LookingUp,      // Ngước nhìn lên
-        LookingDown,    // Cúi gầm mặt
-        LookingLeft,    // Liếc/Quay trái
-        LookingRight, // Liếc/Quay phải
-        Glancing // THÊM MỚI: Trạng thái Liếc Mắt        
+        TooClose,       // Ngồi quá gần
+        OutOfSafeZone,  // Ngồi lệch lề màn hình
+        LookingUp,      // Ngửa mặt lên
+        LookingDown,    // Cúi mặt xuống
+        LookingLeft,    // Quay mặt trái
+        LookingRight,   // Quay mặt phải
+        Glancing        // Liếc mắt (đầu thẳng nhưng mắt nhìn chỗ khác)
     }
+
     public class FaceAiService : IDisposable
     {
+        // =========================================================================
+        // 🛠️ KHU VỰC CẤU HÌNH NGƯỠNG VI PHẠM (CHỈ CHỈNH SỬA TẠI ĐÂY)
+        // =========================================================================
+
+        // 1. Tư thế đầu (Head Pose)
+        private const float YAW_HIGH = 1.35f; // Quay trái (yawRatio > 1.35)
+        private const float YAW_LOW = 0.75f; // Quay phải (yawRatio < 0.75)
+        private const float PITCH_UP = 1.00f; // Ngửa lên (pitchRatio < 1.00)
+        private const float PITCH_DOWN = 1.65f; // Cúi xuống (CỦA BẠN LÀ 1.37 NHƯNG NÊN ĐỂ > 1.50 THEO ẢNH TEST)
+
+        // 2. Liếc mắt (Eye Gaze) - Tọa độ con ngươi trong hốc mắt (0.0 -> 1.0)
+        private const float GAZE_MIN_X = 0.40f; // Mắt liếc trái (Pupil X < 0.30)
+        private const float GAZE_MAX_X = 0.60f; // Mắt liếc phải (Pupil X > 0.70)
+        private const float GAZE_MIN_Y = 0.35f; // Mắt liếc lên (Pupil Y < 0.35)
+        private const float GAZE_MAX_Y = 0.88f; // Mắt liếc xuống (Pupil Y > 0.88)
+
+        // 3. Khoảng cách và Vùng an toàn
+        private const float DIST_TOO_FAR = 0.04f; // Mặt nhỏ hơn 4% diện tích ảnh là quá xa
+        private const float DIST_TOO_CLOSE = 0.55f; // Mặt lớn hơn 55% diện tích ảnh là quá gần
+        private const float SAFE_ZONE_LIMIT = 0.30f; // Lệch quá 30% tâm màn hình là báo lỗi
+
+        // =========================================================================
 
         private VideoCapture? _capture;
         private FaceDetectorYN? _faceDetector;
@@ -31,12 +55,9 @@ namespace OmniSight.Services
         public void InitializeModels(string detectorPath, string recognizerPath)
         {
             if (!File.Exists(detectorPath) || !File.Exists(recognizerPath))
-                throw new Exception("Không tìm thấy file Model AI (YuNet / SFace)!");
+                throw new Exception("Không tìm thấy file Model AI!");
 
-            // Khởi tạo Detector
             _faceDetector = new FaceDetectorYN(detectorPath, "", new Size(320, 320));
-
-            // Sửa lỗi: Truy cập trực tiếp vào Enum Backend và Target của Emgu.CV.Dnn
             _faceRecognizer = new FaceRecognizerSF(recognizerPath, "", Emgu.CV.Dnn.Backend.OpenCV, Emgu.CV.Dnn.Target.Cpu);
         }
 
@@ -51,121 +72,15 @@ namespace OmniSight.Services
             if (_capture == null || !_capture.IsOpened) return null;
             Mat frame = new Mat();
             _capture.Read(frame);
-            if (frame.IsEmpty) return null;
-            return frame;
+            return frame.IsEmpty ? null : frame;
         }
 
         public void StopCamera()
         {
-            if (_capture != null)
-            {
-                _capture.Release(); // Giải phóng camera
-                _capture.Dispose();
-                _capture = null;
-            }
+            if (_capture != null) { _capture.Release(); _capture.Dispose(); _capture = null; }
         }
 
-        public float[]? ExtractEmbedding(Mat frame)
-        {
-            if (_faceDetector == null || _faceRecognizer == null) return null;
-
-            _faceDetector.InputSize = new Size(frame.Width, frame.Height);
-            using Mat faces = new Mat();
-            _faceDetector.Detect(frame, faces);
-
-            if (faces.IsEmpty || faces.Rows < 1) return null;
-
-            using Mat alignedFace = new Mat();
-            _faceRecognizer.AlignCrop(frame, faces.Row(0), alignedFace);
-
-            using Mat feature = new Mat();
-            _faceRecognizer.Feature(alignedFace, feature);
-
-            float[] embedding = new float[128];
-            Marshal.Copy(feature.DataPointer, embedding, 0, 128);
-
-            return embedding;
-        }
-
-        public void Dispose()
-        {
-            StopCamera();
-            _faceDetector?.Dispose();
-            _faceRecognizer?.Dispose();
-        }
-        public int GetFaceCount(Mat frame)
-        {
-            if (_faceDetector == null) return 0;
-
-            // Đặt kích thước đầu vào khớp với kích thước của frame
-            _faceDetector.InputSize = new Size(frame.Width, frame.Height);
-
-            using Mat faces = new Mat();
-            _faceDetector.Detect(frame, faces);
-
-            if (faces.IsEmpty) return 0;
-            return faces.Rows; // Số dòng tương đương với số khuôn mặt phát hiện được
-        }
-        public bool IsLookingAway(Mat frame)
-        {
-            if (_faceDetector == null) return false;
-            _faceDetector.InputSize = new Size(frame.Width, frame.Height);
-
-            using Mat faces = new Mat();
-            _faceDetector.Detect(frame, faces);
-
-            // Mất mặt hoàn toàn -> Tính là quay đi
-            if (faces.IsEmpty || faces.Rows == 0) return true;
-
-            float[] faceData = new float[15];
-            Marshal.Copy(faces.Row(0).DataPointer, faceData, 0, 15);
-
-            float x = faceData[0], y = faceData[1], w = faceData[2], h = faceData[3];
-            float rx = faceData[4], ry = faceData[5]; // Mắt phải
-            float lx = faceData[6], ly = faceData[7]; // Mắt trái
-            float nx = faceData[8], ny = faceData[9]; // Mũi
-
-            // 1. KIỂM TRA NGỒI LỆCH TÂM (Siết từ 45% xuống 25%)
-            // Nếu thí sinh cố tình né qua một bên để chừa góc cho người khác nhìn màn hình
-            float faceCenterX = x + w / 2;
-            float faceCenterY = y + h / 2;
-            float frameCenterX = frame.Width / 2;
-            float frameCenterY = frame.Height / 2;
-
-            if (Math.Abs(faceCenterX - frameCenterX) > frame.Width * 0.25f ||
-                Math.Abs(faceCenterY - frameCenterY) > frame.Height * 0.25f)
-            {
-                return true;
-            }
-
-            // 2. KIỂM TRA QUAY TRÁI / PHẢI (Yaw)
-            float distRightEye = (float)Math.Sqrt(Math.Pow(nx - rx, 2) + Math.Pow(ny - ry, 2));
-            float distLeftEye = (float)Math.Sqrt(Math.Pow(nx - lx, 2) + Math.Pow(ny - ly, 2));
-
-            if (distRightEye == 0 || distLeftEye == 0) return false;
-            float ratio = distRightEye / distLeftEye;
-
-            // Siết chặt: Lệch tỷ lệ > 1.3 hoặc < 0.75 là bị bắt (Trước đó là 1.6 và 0.6)
-            // Nghĩa là chỉ cần ngoảnh mặt một góc nhỏ là dính vi phạm
-            if (ratio > 1.3f || ratio < 0.75f)
-            {
-                return true;
-            }
-
-            // 3. KIỂM TRA CÚI MẶT / NGỬA MẶT (Pitch)
-            // Dựa vào khoảng cách từ mũi đến đường nối 2 mắt so với chiều cao khuôn mặt
-            float eyeCenterY = (ry + ly) / 2;
-            float verticalRatio = (ny - eyeCenterY) / h;
-
-            // Siết chặt: < 0.15 là cúi gầm mặt (nhìn điện thoại/tài liệu dưới bàn)
-            // > 0.35 là ngửa mặt lên trời
-            if (verticalRatio < 0.15f || verticalRatio > 0.35f)
-            {
-                return true;
-            }
-
-            return false; // Nhìn thẳng chuẩn chỉnh
-        }
+        // --- HÀM LOGIC CHÍNH: PHÂN TÍCH HÀNH VI ---
         public FaceStatus AnalyzeFaceBehavior(Mat frame)
         {
             if (_faceDetector == null) return FaceStatus.Normal;
@@ -174,104 +89,101 @@ namespace OmniSight.Services
             using Mat faces = new Mat();
             _faceDetector.Detect(frame, faces);
 
+            // 1. Kiểm tra số lượng mặt
             if (faces.IsEmpty || faces.Rows == 0) return FaceStatus.NoFace;
             if (faces.Rows > 1) return FaceStatus.MultipleFaces;
 
-            // Lấy dữ liệu 5 điểm (Mắt trái, Mắt phải, Mũi, 2 Khóe miệng)
-            float[] faceData = new float[15];
-            Marshal.Copy(faces.Row(0).DataPointer, faceData, 0, 15);
+            // 2. Trích xuất dữ liệu 5 điểm (Mắt trái, Mắt phải, Mũi, 2 khóe miệng)
+            float[] d = new float[15];
+            Marshal.Copy(faces.Row(0).DataPointer, d, 0, 15);
 
-            float x = faceData[0], y = faceData[1], w = faceData[2], h = faceData[3];
-            float rx = faceData[4], ry = faceData[5];   // Mắt phải (trên ảnh)
-            float lx = faceData[6], ly = faceData[7];   // Mắt trái
-            float nx = faceData[8], ny = faceData[9];   // Mũi
-            float mrx = faceData[10], mry = faceData[11]; // Khóe miệng phải
-            float mlx = faceData[12], mly = faceData[13]; // Khóe miệng trái
+            float x = d[0], y = d[1], w = d[2], h = d[3]; // Tọa độ mặt
+            float rx = d[4], ry = d[5], lx = d[6], ly = d[7]; // Mắt phải, mắt trái
+            float nx = d[8], ny = d[9]; // Mũi
+            float mrx = d[10], mry = d[11], mlx = d[12], mly = d[13]; // Miệng
 
-            // 1. TÍNH KHOẢNG CÁCH (Dựa vào tỷ lệ diện tích khuôn mặt / khung hình)
-            float faceArea = w * h;
-            float frameArea = frame.Width * frame.Height;
-            float distanceRatio = faceArea / frameArea;
+            // 3. KIỂM TRA KHOẢNG CÁCH & VÙNG AN TOÀN
+            float areaRatio = (w * h) / (float)(frame.Width * frame.Height);
+            if (areaRatio < DIST_TOO_FAR) return FaceStatus.TooFar;
+            if (areaRatio > DIST_TOO_CLOSE) return FaceStatus.TooClose;
 
-            if (distanceRatio < 0.05f) return FaceStatus.TooFar;   // Mặt quá nhỏ -> Ngồi quá xa
-            if (distanceRatio > 0.50f) return FaceStatus.TooClose; // Mặt quá to -> Dí sát màn hình để đọc trộm
-
-            // 2. VÙNG AN TOÀN (Mặt phải nằm ở trung tâm màn hình, không được nép góc)
             float faceCenterX = x + w / 2;
-            float faceCenterY = y + h / 2;
-            float frameCenterX = frame.Width / 2;
-            float frameCenterY = frame.Height / 2;
-            
-            // Lệch tâm quá 25% chiều rộng/cao là bị văng ra khỏi "Vùng an toàn"
-            if (Math.Abs(faceCenterX - frameCenterX) > frame.Width * 0.25f || 
-                Math.Abs(faceCenterY - frameCenterY) > frame.Height * 0.25f)
-            {
-                return FaceStatus.OutOfSafeZone; 
-            }
+            if (Math.Abs(faceCenterX - frame.Width / 2f) > frame.Width * SAFE_ZONE_LIMIT)
+                return FaceStatus.OutOfSafeZone;
 
-            // 3. TÍNH GÓC QUAY (HEAD POSE - YAW) - Liếc ngang
+            // 4. KIỂM TRA TƯ THẾ ĐẦU (YAW - Quay ngang)
             float distNoseToRightEye = (float)Math.Sqrt(Math.Pow(nx - rx, 2) + Math.Pow(ny - ry, 2));
             float distNoseToLeftEye = (float)Math.Sqrt(Math.Pow(nx - lx, 2) + Math.Pow(ny - ly, 2));
             float yawRatio = distNoseToRightEye / (distNoseToLeftEye + 0.001f);
 
-            if (yawRatio > 1.4f) return FaceStatus.LookingLeft;
-            if (yawRatio < 0.7f) return FaceStatus.LookingRight;
+            if (yawRatio > YAW_HIGH) return FaceStatus.LookingLeft;
+            if (yawRatio < YAW_LOW) return FaceStatus.LookingRight;
 
-            // 4. TÍNH GÓC CÚI/NGỬA (HEAD POSE - PITCH) - Nhìn lên/xuống
+            // 5. KIỂM TRA CÚI/NGỬA (PITCH)
             float eyeCenterY = (ry + ly) / 2;
             float mouthCenterY = (mry + mly) / 2;
-            
-            float distNoseToEye = ny - eyeCenterY;       // Mũi cách mắt bao xa
-            float distNoseToMouth = mouthCenterY - ny;   // Mũi cách miệng bao xa
-            float pitchRatio = distNoseToEye / (distNoseToMouth + 0.001f);
+            float pitchRatio = (ny - eyeCenterY) / (mouthCenterY - ny + 0.001f);
 
-            if (pitchRatio < 0.65f) return FaceStatus.LookingUp;   // Mũi dính sát vào mắt -> Đang ngửa đầu nhìn lên
-            if (pitchRatio > 1.35f) return FaceStatus.LookingDown; // Mũi dính sát vào miệng -> Đang cúi gầm mặt
-            // 5. ÁNH MẮT (EYE GAZE - Bắt liếc mắt)
-            if (CheckEyeGaze(frame, lx, ly, w) || CheckEyeGaze(frame, rx, ry, w))
-            {
-                return FaceStatus.Glancing; // Đánh cờ Liếc mắt
-            }
+            if (pitchRatio < PITCH_UP) return FaceStatus.LookingUp;
+            if (pitchRatio > PITCH_DOWN) return FaceStatus.LookingDown;
 
-            return FaceStatus.Normal; // Trạng thái hoàn hảo
+            // 6. KIỂM TRA LIẾC MẮT (Dùng hằng số cấu hình ở trên)
+            if (CheckIndividualGaze(frame, lx, ly, w)) return FaceStatus.Glancing;
+
+            return FaceStatus.Normal;
         }
-        private bool CheckEyeGaze(Mat frame, float eyeX, float eyeY, float faceWidth)
+
+        private bool CheckIndividualGaze(Mat frame, float eyeX, float eyeY, float faceWidth)
         {
             try
             {
-                // Ước lượng độ to của mắt dựa trên tỷ lệ khuôn mặt
-                int eyeW = (int)(faceWidth * 0.22f);
-                int eyeH = (int)(faceWidth * 0.12f);
-                int eyeStartX = (int)(eyeX - eyeW / 2f);
-                int eyeStartY = (int)(eyeY - eyeH / 2f);
+                // Cắt vùng mắt
+                int ew = (int)(faceWidth * 0.22f), eh = (int)(faceWidth * 0.12f);
+                int ex = (int)(eyeX - ew / 2f), ey = (int)(eyeY - eh / 2f);
 
-                // Chặn lỗi văng viền ảnh
-                if (eyeStartX < 0 || eyeStartY < 0 || eyeStartX + eyeW > frame.Width || eyeStartY + eyeH > frame.Height)
-                    return false;
+                if (ex < 0 || ey < 0 || ex + ew > frame.Width || ey + eh > frame.Height) return false;
 
-                Rectangle eyeRect = new Rectangle(eyeStartX, eyeStartY, eyeW, eyeH);
-                using Mat eyeMat = new Mat(frame, eyeRect);
-                using Mat grayEye = new Mat();
+                using Mat eye = new Mat(frame, new Rectangle(ex, ey, ew, eh));
+                using Mat gray = new Mat();
+                CvInvoke.CvtColor(eye, gray, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
 
-                // Chuyển sang ảnh xám để nhận diện mống mắt/con ngươi dễ hơn
-                CvInvoke.CvtColor(eyeMat, grayEye, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                double minV = 0, maxV = 0; Point minL = new Point(), maxL = new Point();
+                CvInvoke.MinMaxLoc(gray, ref minV, ref maxV, ref minL, ref maxL);
 
-                // Tìm điểm tối nhất (Darkest point) -> Chính là con ngươi
-                double minVal = 0, maxVal = 0;
-                Point minLoc = new Point(), maxLoc = new Point();
-                CvInvoke.MinMaxLoc(grayEye, ref minVal, ref maxVal, ref minLoc, ref maxLoc);
+                float pupilX = (float)minL.X / ew;
+                float pupilY = (float)minL.Y / eh;
 
-                // Tính tỷ lệ vị trí con ngươi trên chiều ngang mắt (0.0 -> 1.0)
-                float pupilRatioX = (float)minLoc.X / eyeW;
-
-                // Nếu con ngươi chạy sát về 2 khóe mắt (< 30% hoặc > 70%)
-                if (pupilRatioX < 0.30f || pupilRatioX > 0.70f)
-                {
-                    return true;
-                }
+                // So sánh với các hằng số ở đầu file
+                return (pupilX < GAZE_MIN_X || pupilX > GAZE_MAX_X ||
+                        pupilY < GAZE_MIN_Y || pupilY > GAZE_MAX_Y);
             }
-            catch { }
-            return false;
+            catch { return false; }
+        }
+
+        // --- HÀM FACE ID (TRÍCH XUẤT VECTOR) ---
+        public float[]? ExtractEmbedding(Mat frame)
+        {
+            if (_faceDetector == null || _faceRecognizer == null) return null;
+            _faceDetector.InputSize = new Size(frame.Width, frame.Height);
+            using Mat faces = new Mat();
+            _faceDetector.Detect(frame, faces);
+            if (faces.IsEmpty || faces.Rows < 1) return null;
+
+            using Mat alignedFace = new Mat();
+            _faceRecognizer.AlignCrop(frame, faces.Row(0), alignedFace);
+            using Mat feature = new Mat();
+            _faceRecognizer.Feature(alignedFace, feature);
+
+            float[] embedding = new float[128];
+            Marshal.Copy(feature.DataPointer, embedding, 0, 128);
+            return embedding;
+        }
+
+        public void Dispose()
+        {
+            StopCamera();
+            _faceDetector?.Dispose();
+            _faceRecognizer?.Dispose();
         }
     }
 }

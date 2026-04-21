@@ -67,7 +67,12 @@ namespace OmniSight.UI.Forms
             _examResult = examResult;
             _examService = examService;
             _antiCheatService = antiCheatService;
-            _remainingSeconds = exam.DurationMinutes * 60;
+            // --- LOGIC THỜI GIAN MỚI ---
+            DateTime startTime = _examResult.StartedAt ?? DateTime.Now;
+            DateTime endTime = startTime.AddMinutes(_exam.DurationMinutes);
+            TimeSpan remaining = endTime - DateTime.Now;
+
+            _remainingSeconds = (int)remaining.TotalSeconds;
             InitializeComponent();
         }
 
@@ -93,13 +98,26 @@ namespace OmniSight.UI.Forms
         private void BuildLayout()
         {
             // ── HEADER (top 60px) ──────────────────────────────────────
-            var pnlHeader = new Panel
+            lblTimer = new Label
+            {
+                Text = "⏱  --:--",
+                Font = new Font("Segoe UI Semibold", 14),
+                ForeColor = Color.FromArgb(255, 235, 59),
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                // Không dùng Location cố định — dùng Dock + FlowLayout thay thế
+            };
+            var pnlHeader = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 Height = 60,
                 BackColor = Color.FromArgb(21, 101, 192),
+                ColumnCount = 2,
+                RowCount = 1,
                 Padding = new Padding(20, 0, 20, 0)
             };
+            pnlHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            pnlHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
 
             lblProgress = new Label
             {
@@ -107,7 +125,8 @@ namespace OmniSight.UI.Forms
                 Font = new Font("Segoe UI Semibold", 14),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(20, 16)
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             lblTimer = new Label
@@ -116,13 +135,13 @@ namespace OmniSight.UI.Forms
                 Font = new Font("Segoe UI Semibold", 14),
                 ForeColor = Color.FromArgb(255, 235, 59),
                 AutoSize = true,
-                // Đổi sang Anchor + Location rõ ràng hơn:
-                Location = new Point(700, 16)  // đổi từ 900 xuống 700
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight
             };
 
-
-
-            pnlHeader.Controls.AddRange(new Control[] { lblProgress, lblTimer });
+            pnlHeader.Controls.Add(lblProgress, 0, 0);
+            pnlHeader.Controls.Add(lblTimer, 1, 0);
+            this.Controls.Add(pnlHeader);
 
             // ── RIGHT SIDEBAR (260px) ──────────────────────────────────
             var pnlRight = new Panel
@@ -265,7 +284,7 @@ namespace OmniSight.UI.Forms
             };
 
             // Question number badge
-            lblQuestionNumber = new Label
+            /*lblQuestionNumber = new Label
             {
                 Text = "CÂU 1",
                 Font = new Font("Segoe UI Semibold", 9),
@@ -276,17 +295,17 @@ namespace OmniSight.UI.Forms
                 Location = new Point(32, 28),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Padding = new Padding(4, 0, 4, 0)
-            };
+            };*/
 
             // Question text
             lblQuestion = new Label
             {
                 Text = "Đang tải câu hỏi...",
-                Font = new Font("Segoe UI Semibold", 13),
+                Font = new Font("Segoe UI Semibold", 14), // Tăng size lên tí cho đẹp
                 ForeColor = Color.FromArgb(20, 20, 20),
                 AutoSize = false,
-                Location = new Point(32, 68),
-                Size = new Size(800, 80),
+                Location = new Point(32, 30), // Đẩy lên tọa độ 30 (cũ là 68)
+                Size = new Size(800, 100),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -546,8 +565,8 @@ namespace OmniSight.UI.Forms
             var q = _questions[index];
 
             lblProgress.Text = $"Câu {index + 1} / {_questions.Count}";
-            lblQuestionNumber.Text = $"CÂU {index + 1}";
-            lblQuestion.Text = q.Content;
+/*            lblQuestionNumber.Text = $"CÂU {index + 1}";
+*/            lblQuestion.Text = q.Content;
 
             rbA.Text = "A.  " + (q.OptionA ?? "");
             rbB.Text = "B.  " + (q.OptionB ?? "");

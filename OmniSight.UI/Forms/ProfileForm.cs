@@ -56,9 +56,8 @@ namespace OmniSight.UI.Forms
             bool success = await _userService.UpdateProfileAsync(
                 userId,
                 txtFullName.Text,
-                txtPhone.Text,
-                switchStudent.Checked,
-                switchTeacher.Checked
+                txtPhone.Text
+               
             );
 
             if (success && user != null)

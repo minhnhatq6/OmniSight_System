@@ -43,8 +43,7 @@
             tsmLogout = new ToolStripMenuItem();
             btnUserAccount = new MaterialSkin.Controls.MaterialButton();
             timerCamera = new System.Windows.Forms.Timer(components);
-            switchTeacher = new MaterialSkin.Controls.MaterialSwitch();
-            switchStudent = new MaterialSkin.Controls.MaterialSwitch();
+          
             materialTabControl1.SuspendLayout();
             tabHome.SuspendLayout();
             tabClasses.SuspendLayout();
@@ -216,8 +215,7 @@
             tabProfile.Controls.Add(btnStartCamera);
             tabProfile.Controls.Add(btnCaptureFace);
             tabProfile.Controls.Add(btnSaveProfile);
-            tabProfile.Controls.Add(switchTeacher); // GIỮ LẠI CÔNG TẮC
-            tabProfile.Controls.Add(switchStudent); // GIỮ LẠI CÔNG TẮC
+             // GIỮ LẠI CÔNG TẮC
             tabProfile.Controls.Add(txtPhone);
             tabProfile.Controls.Add(txtFullName);
             tabProfile.ImageKey = "Account";
@@ -318,6 +316,7 @@
             btnSaveProfile.UseAccentColor = false;
             btnSaveProfile.UseVisualStyleBackColor = true;
             btnSaveProfile.Click += btnSaveProfile_Click;
+
             // 
             // txtPhone
             // 
@@ -436,36 +435,7 @@
             // 
             timerCamera.Interval = 30;
             timerCamera.Tick += timerCamera_Tick;
-            // 
-            // switchTeacher
-            // 
-            switchTeacher.AutoSize = true;
-            switchTeacher.Depth = 0;
-            switchTeacher.Location = new Point(150, 290); // Đặt dưới switchStudent
-            switchTeacher.Margin = new Padding(0);
-            switchTeacher.MouseLocation = new Point(-1, -1);
-            switchTeacher.MouseState = MaterialSkin.MouseState.HOVER;
-            switchTeacher.Name = "switchTeacher";
-            switchTeacher.Ripple = true;
-            switchTeacher.Size = new Size(174, 37);
-            switchTeacher.TabIndex = 3;
-            switchTeacher.Text = "Vai trò Giáo viên";
-            switchTeacher.UseVisualStyleBackColor = true;
-            // 
-            // switchStudent
-            // 
-            switchStudent.AutoSize = true;
-            switchStudent.Depth = 0;
-            switchStudent.Location = new Point(150, 250); // Đặt ngay dưới txtPhone
-            switchStudent.Margin = new Padding(0);
-            switchStudent.MouseLocation = new Point(-1, -1);
-            switchStudent.MouseState = MaterialSkin.MouseState.HOVER;
-            switchStudent.Name = "switchStudent";
-            switchStudent.Ripple = true;
-            switchStudent.Size = new Size(170, 37);
-            switchStudent.TabIndex = 2;
-            switchStudent.Text = "Vai trò Học sinh";
-            switchStudent.UseVisualStyleBackColor = true;
+
             // 
             // MainForm
             // 
@@ -525,7 +495,6 @@
         private ColumnHeader columnHeader2;
         private MaterialSkin.Controls.MaterialButton btnOpenJoinClass;
         private MaterialSkin.Controls.MaterialButton btnOpenExamManager;
-        private MaterialSkin.Controls.MaterialSwitch switchTeacher;
-        private MaterialSkin.Controls.MaterialSwitch switchStudent;
+     
     }
 }

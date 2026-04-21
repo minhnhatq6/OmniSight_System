@@ -55,6 +55,9 @@ namespace OmniSight.UI
                     services.AddTransient<FrmSetPassword>();
                     services.AddTransient<FrmFaceLogin>();
                     services.AddScoped<AntiCheatService>();
+                    // Đăng ký Form Test AI
+                    services.AddTransient<FrmAntiCheatTester>();
+                    services.AddTransient<FrmAdminDashboard>();
                 })
                 .Build();
 

@@ -96,9 +96,55 @@ namespace OmniSight.UI.Forms.Auth
         // --- ĐĂNG NHẬP EMAIL ---
         private async void btnLoginEmail_Click(object sender, EventArgs e)
         {
-            var result = await _authService.LoginWithEmailAsync(txtEmail.Text, txtPassword.Text);
-            if (result.success) GoToMainForm();
-            else MessageBox.Show(result.message, "Lỗi Đăng nhập");
+            try
+            {
+                string email = txtEmail.Text.Trim();
+                string password = txtPassword.Text;
+
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+                {
+                    MessageBox.Show("Vui lòng nhập đầy đủ thông tin!");
+                    return;
+                }
+
+                // --- 1. KIỂM TRA TÀI KHOẢN ADMIN ---
+                if (email == "admin" && password == "admin123")
+                {
+                    var adminForm = _serviceProvider.GetRequiredService<FrmAdminDashboard>();
+                    adminForm.Show();
+                    this.Hide();
+                    return;
+                }
+
+                // --- 2. ĐĂNG NHẬP NGƯỜI DÙNG BÌNH THƯỜNG ---
+                var result = await _authService.LoginWithEmailAsync(email, password);
+
+                if (result.success)
+                {
+                    // Dùng BeginInvoke để "tách" luồng mở Main ra khỏi luồng đóng Login
+                    // Việc này giúp tránh lỗi "tắt app luôn" do xung đột tài nguyên
+                    this.BeginInvoke(new Action(() => {
+                        try
+                        {
+                            var mainForm = _serviceProvider.GetRequiredService<MainForm>();
+                            mainForm.Show();
+                            this.Hide();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Lỗi khởi động giao diện chính: " + ex.Message);
+                        }
+                    }));
+                }
+                else
+                {
+                    MessageBox.Show(result.message, "Đăng nhập thất bại", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi hệ thống: " + ex.Message);
+            }
         }
 
         // --- CHUYỂN TRANG ĐĂNG KÝ ---

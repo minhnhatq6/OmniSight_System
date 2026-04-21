@@ -27,6 +27,7 @@ namespace OmniSight.UI.Forms
         private const float MIN_ZOOM = 0.7f;
         private const float MAX_ZOOM = 2.0f;
         private const float ZOOM_STEP = 0.1f;
+        private bool _isDarkMode = false;
         public bool IsFirstTimeLogin { get; set; }
         public MainForm(AuthService authService, IUserService userService, IServiceProvider serviceProvider, FaceAiService faceAiService)
         {
@@ -119,19 +120,17 @@ namespace OmniSight.UI.Forms
 
         private void lvwClasses_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
         {
-            using var bg = new SolidBrush(Color.FromArgb(245, 247, 250));
-            using var line = new Pen(Color.FromArgb(224, 229, 236));
-            e.Graphics.FillRectangle(bg, e.Bounds);
-            e.Graphics.DrawLine(line, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+            var msm = MaterialSkinManager.Instance;
+            bool isDark = msm.Theme == MaterialSkinManager.Themes.DARK;
 
-            var textRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top, e.Bounds.Width - 12, e.Bounds.Height);
-            TextRenderer.DrawText(
-                e.Graphics,
-                e.Header.Text,
-                new Font("Segoe UI Semibold", 10.5f),
-                textRect,
-                Color.FromArgb(66, 66, 66),
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            Color bgColor = isDark ? Color.FromArgb(45, 45, 45) : Color.FromArgb(240, 240, 240);
+            Color textColor = isDark ? Color.White : Color.Black;
+
+            using var bg = new SolidBrush(bgColor);
+            e.Graphics.FillRectangle(bg, e.Bounds);
+
+            var textRect = new Rectangle(e.Bounds.Left + 15, e.Bounds.Top, e.Bounds.Width - 20, e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, e.Header.Text, new Font("Segoe UI", 11f, FontStyle.Bold), textRect, textColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
         }
 
         private void lvwClasses_DrawItem(object sender, DrawListViewItemEventArgs e)
@@ -141,21 +140,29 @@ namespace OmniSight.UI.Forms
 
         private void lvwClasses_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
         {
-            var rowColor = Color.White;
+            var msm = MaterialSkinManager.Instance;
+            bool isDark = msm.Theme == MaterialSkinManager.Themes.DARK;
 
-            using var bg = new SolidBrush(rowColor);
-            using var grid = new Pen(Color.FromArgb(236, 239, 244));
-            e.Graphics.FillRectangle(bg, e.Bounds);
-            e.Graphics.DrawLine(grid, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+            // QUAN TRỌNG: Lấy đúng mã màu nền tối của thư viện (khoảng Argb 50,50,50)
+            Color bgColor = isDark ? msm.BackgroundColor : Color.White;
+            Color textColor = isDark ? Color.White : Color.FromArgb(33, 33, 33);
 
-            var textColor = Color.FromArgb(33, 33, 33);
-            var textRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top, e.Bounds.Width - 14, e.Bounds.Height);
-            TextRenderer.DrawText(
-                e.Graphics,
-                e.SubItem.Text,
-                new Font("Segoe UI", 10.5f, FontStyle.Regular),
-                textRect,
-                textColor,
+            if (e.Item.Selected)
+            {
+                bgColor = msm.ColorScheme.AccentColor; // Màu cam/xanh tùy bạn chọn
+                textColor = Color.White;
+            }
+
+            using var bgBrush = new SolidBrush(bgColor);
+            e.Graphics.FillRectangle(bgBrush, e.Bounds);
+
+            // Vẽ đường kẻ ngang mờ
+            Color lineColor = isDark ? Color.FromArgb(60, 60, 60) : Color.FromArgb(230, 230, 230);
+            using var pen = new Pen(lineColor);
+            e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+
+            var textRect = new Rectangle(e.Bounds.Left + 15, e.Bounds.Top, e.Bounds.Width - 20, e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, e.Item.Font, textRect, textColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         }
 
@@ -236,10 +243,14 @@ namespace OmniSight.UI.Forms
                 SetupHomeTab();
                 SetupSettingsTab();
 
-                switchStudent.Checked = user.IsStudent;
-                switchTeacher.Checked = user.IsTeacher;
+              
             }
+            var uiSettings = LoadUiSettings();
+            _isDarkMode = uiSettings.isDark; // LƯU CỜ HIỆU ĐỂ DÙNG CHO LISTVIEW
+            MaterialSkinManager.Instance.Theme = _isDarkMode ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
+            ApplyColorByIndex(uiSettings.colorIndex);
 
+            ConfigureClassListView(); // Đặt sau khi đã xác định Theme
             // 3. Chạy các tác vụ ngầm (Dashboard, AI) mà không chặn UI
             BeginInvoke(new Action(() =>
             {
@@ -280,6 +291,11 @@ namespace OmniSight.UI.Forms
         private void MainForm_Activated(object sender, EventArgs e)
         {
             if (!IsHandleCreated) return;
+
+            // Mỗi khi quay lại MainForm, ép cái bảng phải đen lại
+            var msm = MaterialSkinManager.Instance;
+            lvwClasses.BackColor = (msm.Theme == MaterialSkinManager.Themes.DARK) ? msm.BackgroundColor : Color.White;
+
             BeginInvoke(new MethodInvoker(NormalizeDashboardCardsAppearance));
         }
 
@@ -342,7 +358,7 @@ namespace OmniSight.UI.Forms
             var user = _authService.CurrentUser;
             if (user == null) return;
 
-            bool success = await _userService.UpdateProfileAsync(user.UserId, txtFullName.Text, txtPhone.Text, switchStudent.Checked, switchTeacher.Checked);
+            bool success = await _userService.UpdateProfileAsync(user.UserId, txtFullName.Text, txtPhone.Text);
 
             if (success)
             {
@@ -356,9 +372,7 @@ namespace OmniSight.UI.Forms
                     // Update UI fields to reflect saved state
                     txtFullName.Text = updatedUser.FullName ?? string.Empty;
                     txtPhone.Text = updatedUser.Phone ?? string.Empty;
-                    switchStudent.Checked = updatedUser.IsStudent;
-                    switchTeacher.Checked = updatedUser.IsTeacher;
-
+               
                     MessageBox.Show("Cập nhật thành công!");
                 }
                 else
@@ -852,7 +866,23 @@ namespace OmniSight.UI.Forms
                 Location = new Point(35, 30),
                 AutoSize = true
             };
+            MaterialButton btnOpenTester = new MaterialButton
+            {
+                Text = "🧪 THỬ NGHIỆM ĐỘ NHẠY AI",
+                AutoSize = true,
+                Type = MaterialSkin.Controls.MaterialButton.MaterialButtonType.Contained,
+                UseAccentColor = true,
+                Location = new Point(35, 320) // Đặt ở vị trí trống bên dưới các nút chỉnh màu
+            };
 
+            btnOpenTester.Click += (s, e) =>
+            {
+                // Lấy form từ DI Container
+                var testerForm = _serviceProvider.GetRequiredService<FrmAntiCheatTester>();
+                testerForm.Show(); // Dùng Show thay vì ShowDialog để bạn có thể vừa nhìn app vừa chỉnh
+            };
+
+            tabSettings.Controls.Add(btnOpenTester);
             var currentSettings = LoadUiSettings();
 
             MaterialSwitch switchDarkMode = new MaterialSwitch
@@ -862,17 +892,28 @@ namespace OmniSight.UI.Forms
                 AutoSize = true,
                 Checked = currentSettings.isDark
             };
-            
+
             switchDarkMode.CheckedChanged += (s, e) =>
             {
-                MaterialSkinManager.Instance.Theme = switchDarkMode.Checked ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
-                
+                var msm = MaterialSkinManager.Instance;
+                _isDarkMode = switchDarkMode.Checked;
+                msm.Theme = _isDarkMode ? MaterialSkinManager.Themes.DARK : MaterialSkinManager.Themes.LIGHT;
+
+                // Lưu cài đặt
                 int currentColorIndex = LoadUiSettings().colorIndex;
-                SaveUiSettings(switchDarkMode.Checked, currentColorIndex);
+                SaveUiSettings(_isDarkMode, currentColorIndex);
+
+                // QUAN TRỌNG: Ép màu nền cho ListView ngay tại đây
+                lvwClasses.BackColor = _isDarkMode ? msm.BackgroundColor : Color.White;
+
+                // Chạy hàm ép màu đệ quy cho toàn bộ ứng dụng
+                ForceUpdateTheme(this);
+
+                // Cập nhật cho cả Dashboard
+                _ = LoadDashboardDataAsync();
 
                 this.Invalidate(true);
                 this.Refresh();
-                _ = LoadDashboardDataAsync();
             };
 
             MaterialLabel lblTheme = new MaterialLabel
@@ -903,7 +944,68 @@ namespace OmniSight.UI.Forms
             tabSettings.Controls.Add(lblTheme);
             tabSettings.Controls.Add(flpColors);
         }
+        // =========================================================================
+        // HÀM ÉP MÀU THEME CHO TOÀN BỘ ỨNG DỤNG (KHẮC PHỤC LỖI TRẮNG/ĐEN KHI DARK MODE)
+        // =========================================================================
+        private void ForceUpdateTheme(Control parent)
+        {
+            if (parent == null) return;
+            var msm = MaterialSkinManager.Instance;
+            bool isDark = msm.Theme == MaterialSkinManager.Themes.DARK;
 
+            // Lấy màu nền chuẩn của MaterialSkin
+            Color backColor = isDark ? msm.BackgroundColor : Color.White;
+            Color textColor = isDark ? Color.White : Color.Black;
+            Color headerColor = isDark ? Color.FromArgb(45, 45, 45) : Color.FromArgb(240, 240, 240);
+            Color gridLineColor = isDark ? Color.FromArgb(70, 70, 70) : Color.FromArgb(230, 230, 230);
+
+            foreach (Control ctrl in parent.Controls)
+            {
+                // 1. Ép Font và màu chữ cho các control cơ bản
+                try { ctrl.Font = msm.getFontByType(MaterialSkinManager.fontType.Body1); } catch { }
+
+                // 2. Xử lý các Container (Panel, TabPage...)
+                if (ctrl is Panel || ctrl is UserControl || ctrl is TabPage || ctrl is FlowLayoutPanel)
+                {
+                    ctrl.BackColor = backColor;
+                    ctrl.ForeColor = textColor;
+                }
+
+                // 3. XỬ LÝ ĐẶC BIỆT CHO LISTVIEW (Sửa lỗi cục màu xám)
+                if (ctrl is ListView lvw)
+                {
+                    lvw.BackColor = backColor; // Ép cái nền xám biến thành đen
+                    lvw.ForeColor = textColor;
+                    lvw.Invalidate();
+                }
+
+                // 4. Xử lý DataGridView
+                if (ctrl is DataGridView dgv)
+                {
+                    dgv.EnableHeadersVisualStyles = false;
+                    dgv.BackgroundColor = backColor;
+                    dgv.GridColor = gridLineColor;
+                    dgv.DefaultCellStyle.BackColor = backColor;
+                    dgv.DefaultCellStyle.ForeColor = textColor;
+                    dgv.ColumnHeadersDefaultCellStyle.BackColor = headerColor;
+                    dgv.ColumnHeadersDefaultCellStyle.ForeColor = textColor;
+                    dgv.Invalidate();
+                }
+
+                // 5. Xử lý các ô nhập liệu
+                if (ctrl is ComboBox || ctrl is TextBox || ctrl is NumericUpDown || ctrl is DateTimePicker)
+                {
+                    ctrl.BackColor = backColor;
+                    ctrl.ForeColor = textColor;
+                }
+
+                // ĐỆ QUY DUY NHẤT 1 LẦN Ở ĐÂY
+                if (ctrl.Controls.Count > 0)
+                {
+                    ForceUpdateTheme(ctrl);
+                }
+            }
+        }
         // 2. TUY�?T CHI�SU: Biến cái nút thành m�Tt bức ảnh (PictureBox)
         private PictureBox CreateColorOption(string name, Color bgColor, int colorIndex)
         {

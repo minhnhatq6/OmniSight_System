@@ -34,7 +34,16 @@ namespace OmniSight.Services
         private int _glanceCount = 0;
         private bool _isCurrentlyTabbedOut = false;
         private const string ImgBB_API_KEY = "8e336e9eee38de601c4a73eae1093253";
+        // AntiCheatService.cs
+        // Thêm các biến này vào đầu class:
 
+        // SMOOTHING BUFFER: Lưu lịch sử N frame gần nhất để tránh false positive 1 frame lẻ
+        private const int SMOOTH_WINDOW = 3; // Cần 3 frame liên tiếp cùng trạng thái mới tính
+        private Queue<FaceStatus> _faceStatusHistory = new Queue<FaceStatus>();
+
+        // Đếm thời gian giữ trạng thái xấu LIÊN TỤC (không bị reset bởi 1 frame Normal lẻ)
+        private int _consecutiveNormalFrames = 0;
+        private const int NORMAL_GRACE_FRAMES = 2; // Cần 2 frame Normal liên tiếp mới reset timer
         // FIX 1: Thêm lock để tránh 2 scan chạy song song
         private bool _isScanning = false;
 
@@ -135,19 +144,34 @@ namespace OmniSight.Services
                 }
                 else _talkingDurationMs = 0;
 
-                // Face AI detection
+                // Thay toàn bộ phần "// 3. FACE AI DETECTION" trong ScanForViolationsAsync:
+
+                // 3. FACE AI DETECTION
                 using (var frame = _faceAiService.GetFrame())
                 {
                     if (frame != null && !frame.IsEmpty)
                     {
                         FaceStatus currentStatus = _faceAiService.AnalyzeFaceBehavior(frame);
 
-                        if (currentStatus != FaceStatus.Normal)
+                        // BƯỚC 1: Thêm vào buffer, giữ tối đa SMOOTH_WINDOW phần tử
+                        _faceStatusHistory.Enqueue(currentStatus);
+                        if (_faceStatusHistory.Count > SMOOTH_WINDOW)
+                            _faceStatusHistory.Dequeue();
+
+                        // BƯỚC 2: Lấy trạng thái "đa số" trong buffer (majority vote)
+                        // Nếu 2/3 frame gần nhất cùng 1 trạng thái xấu → mới tính là xấu thật
+                        FaceStatus smoothedStatus = GetMajorityStatus(_faceStatusHistory);
+
+                        // BƯỚC 3: Đếm thời gian liên tục
+                        if (smoothedStatus != FaceStatus.Normal)
                         {
+                            _consecutiveNormalFrames = 0; // Reset grace counter
                             _badPoseDurationMs += SCAN_INTERVAL_MS;
+
+                            // Phạt sau 3 giây liên tục
                             if (_badPoseDurationMs >= 3000)
                             {
-                                string reason = currentStatus switch
+                                string reason = smoothedStatus switch
                                 {
                                     FaceStatus.NoFace => "Mất khuôn mặt khỏi Camera",
                                     FaceStatus.MultipleFaces => "Có người lạ trợ giúp",
@@ -166,43 +190,52 @@ namespace OmniSight.Services
                         }
                         else
                         {
-                            _badPoseDurationMs = 0;
+                            // GRACE PERIOD: Cần N frame Normal liên tiếp mới reset timer
+                            // Tránh trường hợp 1 frame Normal lẻ reset hết bộ đếm
+                            _consecutiveNormalFrames++;
+                            if (_consecutiveNormalFrames >= NORMAL_GRACE_FRAMES)
+                            {
+                                _badPoseDurationMs = 0;
+                            }
                         }
 
-                        if (currentStatus != FaceStatus.Normal && currentStatus != _previousFaceStatus)
+                        // BƯỚC 4: Đếm số lần lặp lại (chỉ tính khi transition từ Normal → Xấu)
+                        // Dùng smoothedStatus thay vì currentStatus thô
+                        if (smoothedStatus != FaceStatus.Normal && smoothedStatus != _previousFaceStatus
+                            && _previousFaceStatus == FaceStatus.Normal) // Chỉ tính khi VỪA chuyển từ Normal sang xấu
                         {
-                            if (currentStatus == FaceStatus.LookingDown)
+                            if (smoothedStatus == FaceStatus.LookingDown)
                             {
                                 _lookDownCount++;
-                                if (_lookDownCount > 3)
+                                if (_lookDownCount > 5) // Tăng từ 3 → 5 lần
                                 {
-                                    await LogAndSaveViolationAsync("Nhìn xuống gầm bàn/điện thoại LẶP LẠI QUÁ 3 LẦN", frame);
+                                    await LogAndSaveViolationAsync("Nhìn xuống gầm bàn/điện thoại LẶP LẠI QUÁ 5 LẦN", frame);
                                     _lookDownCount = 0;
                                 }
                             }
-                            else if (currentStatus == FaceStatus.LookingUp)
+                            else if (smoothedStatus == FaceStatus.LookingUp)
                             {
                                 _lookUpCount++;
-                                if (_lookUpCount > 3)
+                                if (_lookUpCount > 5)
                                 {
-                                    await LogAndSaveViolationAsync("Ngước nhìn tài liệu trên cao LẶP LẠI QUÁ 3 LẦN", frame);
+                                    await LogAndSaveViolationAsync("Ngước nhìn tài liệu trên cao LẶP LẠI QUÁ 5 LẦN", frame);
                                     _lookUpCount = 0;
                                 }
                             }
-                            else if (currentStatus == FaceStatus.LookingLeft ||
-                                     currentStatus == FaceStatus.LookingRight ||
-                                     currentStatus == FaceStatus.Glancing)
+                            else if (smoothedStatus == FaceStatus.LookingLeft ||
+                                     smoothedStatus == FaceStatus.LookingRight ||
+                                     smoothedStatus == FaceStatus.Glancing)
                             {
                                 _glanceCount++;
-                                if (_glanceCount > 3)
+                                if (_glanceCount > 5)
                                 {
-                                    await LogAndSaveViolationAsync("Liếc mắt/Quay ngang LẶP LẠI QUÁ 3 LẦN", frame);
+                                    await LogAndSaveViolationAsync("Liếc mắt/Quay ngang LẶP LẠI QUÁ 5 LẦN", frame);
                                     _glanceCount = 0;
                                 }
                             }
                         }
 
-                        _previousFaceStatus = currentStatus;
+                        _previousFaceStatus = smoothedStatus; // Dùng smoothed thay vì raw
                     }
                 }
             }
@@ -212,7 +245,38 @@ namespace OmniSight.Services
                 _isScanning = false;
             }
         }
+        private FaceStatus GetMajorityStatus(Queue<FaceStatus> history)
+        {
+            if (history.Count == 0) return FaceStatus.Normal;
 
+            // Đếm tần suất mỗi trạng thái
+            var counts = new Dictionary<FaceStatus, int>();
+            foreach (var s in history)
+            {
+                if (!counts.ContainsKey(s)) counts[s] = 0;
+                counts[s]++;
+            }
+
+            // Tìm trạng thái xuất hiện nhiều nhất
+            FaceStatus majority = FaceStatus.Normal;
+            int maxCount = 0;
+            foreach (var kv in counts)
+            {
+                if (kv.Value > maxCount)
+                {
+                    maxCount = kv.Value;
+                    majority = kv.Key;
+                }
+            }
+
+            // Chỉ trả về trạng thái xấu nếu chiếm ít nhất 2/3 số frame trong buffer
+            // Nếu không đủ đa số → coi là Normal (nhiễu)
+            float threshold = history.Count * 0.6f; // 60% frame phải cùng trạng thái
+            if (maxCount >= threshold && majority != FaceStatus.Normal)
+                return majority;
+
+            return FaceStatus.Normal;
+        }
         private async Task LogAndSaveViolationAsync(string violationType, Mat frame)
         {
             string imageUrl = "";
